@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../design_system/palette.dart';
+import '../../../gallery/presentation/pages/gallery_page.dart';
 
 class ContributionForm extends StatelessWidget {
   const ContributionForm({super.key});
