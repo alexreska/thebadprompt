@@ -51,22 +51,52 @@ class _ContributionFormState extends State<ContributionForm> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<CollectiveSessionBloc, CollectiveSessionState>(
-      listener: (context, state) {
-        if (state is CollectiveSessionActive && _promptController.text.isNotEmpty) {
-           // We just joined, now auto-submit the pending prompt?
-           // context.read<CollectiveSessionBloc>().add(FragmentSubmitted(_promptController.text));
-           // _promptController.clear();
-           // Uncommmented for better UX:
-           final prompt = _promptController.text;
-           context.read<CollectiveSessionBloc>().add(FragmentSubmitted(prompt));
-           _promptController.clear();
-        }
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+          // Timer
+          BlocBuilder<CollectiveSessionBloc, CollectiveSessionState>(
+            builder: (context, state) {
+              if (state is CollectiveSessionActive) {
+                final minutes = state.remainingTime.inMinutes.remainder(60).toString().padLeft(2, '0');
+                final seconds = state.remainingTime.inSeconds.remainder(60).toString().padLeft(2, '0');
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 24.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.timer_outlined, color: TbpPalette.white, size: 16),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '$minutes:$seconds',
+                            style: const TextStyle(
+                              color: TbpPalette.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Courier', 
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      // DEBUG: Fast Forward Button
+                      IconButton(
+                        onPressed: () {
+                           context.read<CollectiveSessionBloc>().add(DebugFastForwardRequested());
+                        }, 
+                        icon: const Icon(Icons.fast_forward, color: TbpPalette.error, size: 16),
+                        tooltip: 'Debug: Jump to 00:10',
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SizedBox(height: 24); 
+            },
+          ),
           // Prompt Input
           Text(
             'Prompt', 
@@ -156,8 +186,7 @@ class _ContributionFormState extends State<ContributionForm> {
               ),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 }

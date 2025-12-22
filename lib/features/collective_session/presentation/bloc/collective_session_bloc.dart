@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../domain/entities/fragment.dart';
@@ -5,6 +6,7 @@ import '../../domain/entities/tbp_session.dart';
 import '../../domain/usecases/join_session.dart';
 import '../../domain/usecases/submit_fragment.dart';
 import '../../domain/usecases/stream_fragments.dart';
+import '../../domain/usecases/debug_fast_forward.dart';
 
 // Events
 abstract class CollectiveSessionEvent extends Equatable {
@@ -15,13 +17,32 @@ abstract class CollectiveSessionEvent extends Equatable {
 class JoinSessionRequested extends CollectiveSessionEvent {
   final String username;
   JoinSessionRequested(this.username);
+  @override
+  List<Object> get props => [username];
 }
 
 class FragmentSubmitted extends CollectiveSessionEvent {
   final String content;
   FragmentSubmitted(this.content);
+  @override
+  List<Object> get props => [content];
 }
 
+class FragmentsUpdated extends CollectiveSessionEvent {
+  final List<Fragment> fragments;
+  FragmentsUpdated(this.fragments);
+  @override
+  List<Object> get props => [fragments];
+}
+
+class TimerTicked extends CollectiveSessionEvent {
+  final Duration remainingTime;
+  TimerTicked(this.remainingTime);
+  @override
+  List<Object> get props => [remainingTime];
+}
+
+class DebugFastForwardRequested extends CollectiveSessionEvent {}
 
 // States
 abstract class CollectiveSessionState extends Equatable {
@@ -36,11 +57,28 @@ class CollectiveSessionLoading extends CollectiveSessionState {}
 class CollectiveSessionActive extends CollectiveSessionState {
   final TbpSession session;
   final List<Fragment> fragments;
+  final Duration remainingTime;
 
-  CollectiveSessionActive({required this.session, this.fragments = const []});
-  
+  CollectiveSessionActive({
+    required this.session,
+    this.fragments = const [],
+    this.remainingTime = const Duration(minutes: 7),
+  });
+
+  CollectiveSessionActive copyWith({
+    TbpSession? session,
+    List<Fragment>? fragments,
+    Duration? remainingTime,
+  }) {
+    return CollectiveSessionActive(
+      session: session ?? this.session,
+      fragments: fragments ?? this.fragments,
+      remainingTime: remainingTime ?? this.remainingTime,
+    );
+  }
+
   @override
-  List<Object> get props => [session, fragments];
+  List<Object> get props => [session, fragments, remainingTime];
 }
 
 class CollectiveSessionError extends CollectiveSessionState {
@@ -54,47 +92,68 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
   final JoinSession joinSession;
   final SubmitFragment submitFragment;
   final StreamFragments streamFragments;
+  final DebugFastForward debugFastForward;
+
+  StreamSubscription? _fragmentsSubscription;
+  Timer? _timer;
 
   CollectiveSessionBloc({
     required this.joinSession,
     required this.submitFragment,
     required this.streamFragments,
+    required this.debugFastForward,
   }) : super(CollectiveSessionInitial()) {
     on<JoinSessionRequested>(_onJoinSessionRequested);
     on<FragmentSubmitted>(_onFragmentSubmitted);
-
+    on<FragmentsUpdated>(_onFragmentsUpdated);
+    on<TimerTicked>(_onTimerTicked);
+    on<DebugFastForwardRequested>(_onDebugFastForwardRequested);
   }
 
   Future<void> _onJoinSessionRequested(JoinSessionRequested event, Emitter<CollectiveSessionState> emit) async {
     emit(CollectiveSessionLoading());
     try {
       final session = await joinSession(event.username);
-      
-      // Subscribe to stream
-      await emit.forEach(
-        streamFragments(session.id),
-        onData: (List<Fragment> fragments) => CollectiveSessionActive(
-          session: session,
-          fragments: fragments,
-        ),
-        // onError: (error, stackTrace) => CollectiveSessionError('Failed to sync stream'),
-        onError: (error, _) => CollectiveSessionError('Failed to sync stream: $error'),
-      );
-      
-      // Note: emit.forEach manages the subscription, but we need to set the initial state first?
-      // Actually emit.forEach blocks. We should probably start the subscription separately or yield properly.
-      // Better pattern: emit Active state logic inside the onData callback of emit.forEach?
-      // Or just listen manually. Let's use emit.forEach carefully.
-      // Wait, standard bloc pattern:
-      // 1. Join -> Success -> Emit Active(session, [])
-      // 2. Add(StartListening) -> calls stream -> yields updates
-      
-      // Let's simplify: Join gets the ID. Then we immediately start listening.
-      // But we can't emit.forEach AND handle other events easily if we await it here.
-      
 
+      // Start fetching fragments
+      _fragmentsSubscription?.cancel();
+      _fragmentsSubscription = streamFragments(session.id).listen((fragments) {
+        add(FragmentsUpdated(fragments));
+      });
+
+      // Start timer
+      _startTimer(session.startTime);
+
+      emit(CollectiveSessionActive(session: session));
     } catch (e) {
       emit(CollectiveSessionError(e.toString()));
+    }
+  }
+
+  void _startTimer(DateTime startTime) {
+    _timer?.cancel();
+    _tick(startTime); // Initial tick
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick(startTime));
+  }
+
+  void _tick(DateTime startTime) {
+    final now = DateTime.now();
+    // Assuming 7 minutes duration
+    final endTime = startTime.add(const Duration(minutes: 7));
+    final remaining = endTime.difference(now);
+
+    if (remaining.isNegative) {
+      add(TimerTicked(Duration.zero));
+      _timer?.cancel();
+      // Auto-refresh session logic
+      // Wait a moment for UX then refresh
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!isClosed) {
+           add(JoinSessionRequested('Anon')); // Re-join to trigger expiry/new session
+        }
+      });
+    } else {
+      add(TimerTicked(remaining));
     }
   }
 
@@ -105,9 +164,40 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
         await submitFragment(currentState.session.id, event.content);
         // Success? The stream will update the UI.
       } catch (e) {
-        // Show error? For now silent or snackbar via listener.
+        // Show error
       }
     }
   }
 
+  void _onFragmentsUpdated(FragmentsUpdated event, Emitter<CollectiveSessionState> emit) {
+    if (state is CollectiveSessionActive) {
+      emit((state as CollectiveSessionActive).copyWith(fragments: event.fragments));
+    }
+  }
+
+  void _onTimerTicked(TimerTicked event, Emitter<CollectiveSessionState> emit) {
+    if (state is CollectiveSessionActive) {
+      emit((state as CollectiveSessionActive).copyWith(remainingTime: event.remainingTime));
+    }
+  }
+
+  Future<void> _onDebugFastForwardRequested(DebugFastForwardRequested event, Emitter<CollectiveSessionState> emit) async {
+    if (state is CollectiveSessionActive) {
+      final session = (state as CollectiveSessionActive).session;
+      try {
+        await debugFastForward(session.id);
+        add(JoinSessionRequested('Anon')); // Re-join to get updated time
+      } catch (e) {
+        // ignore: avoid_print
+        print('Debug FF Error: $e');
+      }
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _fragmentsSubscription?.cancel();
+    _timer?.cancel();
+    return super.close();
+  }
 }

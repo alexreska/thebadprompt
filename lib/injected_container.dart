@@ -1,11 +1,14 @@
 import 'package:get_it/get_it.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'features/collective_session/data/datasources/collective_remote_data_source.dart';
+import 'features/collective_session/data/datasources/generation_remote_data_source.dart';
+import 'package:http/http.dart' as http;
 import 'features/collective_session/data/repositories/collective_repository_impl.dart';
 import 'features/collective_session/domain/repositories/collective_repository.dart';
 import 'features/collective_session/domain/usecases/join_session.dart';
 import 'features/collective_session/domain/usecases/submit_fragment.dart';
 import 'features/collective_session/domain/usecases/stream_fragments.dart';
+import 'features/collective_session/domain/usecases/debug_fast_forward.dart';
 import 'features/collective_session/presentation/bloc/collective_session_bloc.dart';
 
 final sl = GetIt.instance;
@@ -21,14 +24,18 @@ Future<void> init() async {
     () => CollectiveSessionBloc(
       joinSession: sl(),
       submitFragment: sl(),
+
       streamFragments: sl(),
+      debugFastForward: sl(),
     ),
   );
 
   // Use cases
   sl.registerLazySingleton(() => JoinSession(sl()));
   sl.registerLazySingleton(() => SubmitFragment(sl()));
+
   sl.registerLazySingleton(() => StreamFragments(sl()));
+  sl.registerLazySingleton(() => DebugFastForward(sl()));
 
   // Repository
   sl.registerLazySingleton<CollectiveRepository>(
@@ -37,6 +44,15 @@ Future<void> init() async {
 
   // Data sources
   sl.registerLazySingleton<CollectiveRemoteDataSource>(
-    () => CollectiveRemoteDataSourceImpl(supabaseClient: sl()),
+    () => CollectiveRemoteDataSourceImpl(
+      supabaseClient: sl(),
+      generationDataSource: sl(),
+    ),
   );
+  
+  sl.registerLazySingleton<GenerationRemoteDataSource>(
+    () => GenerationRemoteDataSourceImpl(client: sl()),
+  );
+  
+  sl.registerLazySingleton(() => http.Client());
 }

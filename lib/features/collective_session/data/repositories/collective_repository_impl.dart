@@ -22,4 +22,9 @@ class CollectiveRepositoryImpl implements CollectiveRepository {
   Stream<List<Fragment>> streamFragments(String sessionId) {
     return remoteDataSource.streamFragments(sessionId);
   }
+
+  @override
+  Future<void> fastForwardSession(String sessionId) async {
+    return remoteDataSource.fastForwardSession(sessionId);
+  }
 }

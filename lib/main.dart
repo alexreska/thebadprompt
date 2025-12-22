@@ -43,7 +43,7 @@ class LandingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => di.sl<CollectiveSessionBloc>(),
+      create: (_) => di.sl<CollectiveSessionBloc>()..add(JoinSessionRequested('Anon')),
       child: const LandingPageView(),
     );
   }
