@@ -71,6 +71,27 @@ class ContributionForm extends StatelessWidget {
             child: Text('Submit'),
           ),
         ),
+
+        const SizedBox(height: 32),
+                
+        // Archive Link
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () {
+               Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const GalleryPage()),
+              );
+            },
+            child: Text(
+              'VIEW ARCHIVE',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                decoration: TextDecoration.underline,
+                color: TbpPalette.white,
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
