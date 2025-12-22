@@ -5,6 +5,7 @@ import 'features/collective_session/data/repositories/collective_repository_impl
 import 'features/collective_session/domain/repositories/collective_repository.dart';
 import 'features/collective_session/domain/usecases/join_session.dart';
 import 'features/collective_session/domain/usecases/submit_fragment.dart';
+import 'features/collective_session/domain/usecases/stream_fragments.dart';
 import 'features/collective_session/presentation/bloc/collective_session_bloc.dart';
 
 final sl = GetIt.instance;
@@ -20,12 +21,14 @@ Future<void> init() async {
     () => CollectiveSessionBloc(
       joinSession: sl(),
       submitFragment: sl(),
+      streamFragments: sl(),
     ),
   );
 
   // Use cases
   sl.registerLazySingleton(() => JoinSession(sl()));
   sl.registerLazySingleton(() => SubmitFragment(sl()));
+  sl.registerLazySingleton(() => StreamFragments(sl()));
 
   // Repository
   sl.registerLazySingleton<CollectiveRepository>(

@@ -5,6 +5,7 @@ import 'design_system/palette.dart';
 import 'design_system/tbp_theme.dart';
 import 'features/collective_session/presentation/widgets/collective_stream_box.dart';
 import 'features/collective_session/presentation/widgets/contribution_form.dart';
+import 'features/collective_session/presentation/bloc/collective_session_bloc.dart';
 import 'injected_container.dart' as di;
 
 void main() async {
@@ -37,6 +38,18 @@ class TbpApp extends StatelessWidget {
 
 class LandingPage extends StatelessWidget {
   const LandingPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => di.sl<CollectiveSessionBloc>(),
+      child: const LandingPageView(),
+    );
+  }
+}
+
+class LandingPageView extends StatelessWidget {
+  const LandingPageView({super.key});
 
   @override
   Widget build(BuildContext context) {

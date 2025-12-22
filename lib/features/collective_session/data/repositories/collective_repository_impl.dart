@@ -1,3 +1,4 @@
+import '../../domain/entities/fragment.dart';
 import '../../domain/entities/tbp_session.dart';
 import '../../domain/repositories/collective_repository.dart';
 import '../datasources/collective_remote_data_source.dart';
@@ -15,5 +16,10 @@ class CollectiveRepositoryImpl implements CollectiveRepository {
   @override
   Future<void> submitFragment(String sessionId, String fragment) {
     return remoteDataSource.submitFragment(sessionId, fragment);
+  }
+
+  @override
+  Stream<List<Fragment>> streamFragments(String sessionId) {
+    return remoteDataSource.streamFragments(sessionId);
   }
 }
