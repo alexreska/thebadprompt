@@ -47,19 +47,46 @@ class GenerationRemoteDataSourceImpl implements GenerationRemoteDataSource {
         // Parse Gemini response. Note: Gemini usually returns text, not image URL directly unless it's Imagen.
         // If it's a "preview" model it might return base64 or a link.
         // We will log the response to see what we get for the beta.
+        // ignore: avoid_print
         print('MRO: Google API Response: ${response.body}');
         
         // ignore: unused_local_variable
-        final data = jsonDecode(response.body);
-        // This path is a guess for text generation. Image generation response structure differs.
-        // We will return a placeholder for now to not break the app flow if the parsing fails,
-        // but we print the body to debug the exact structure for the user.
-        return 'https://picsum.photos/seed/${DateTime.now().millisecondsSinceEpoch}/512/512';
+        try {
+          final data = jsonDecode(response.body);
+          if (data['candidates'] != null && 
+              (data['candidates'] as List).isNotEmpty &&
+              data['candidates'][0]['content'] != null &&
+              data['candidates'][0]['content']['parts'] != null &&
+              (data['candidates'][0]['content']['parts'] as List).isNotEmpty) {
+             
+             final part = data['candidates'][0]['content']['parts'][0];
+             if (part.containsKey('inlineData')) {
+               final inlineData = part['inlineData'];
+               final mimeType = inlineData['mimeType'] ?? 'image/jpeg';
+               final base64Data = inlineData['data'];
+               
+               // Construct Data URI
+               return 'data:$mimeType;base64,$base64Data';
+             }
+          }
+          
+          // ignore: avoid_print
+          print('MRO: Could not find inlineData in response');
+          return 'https://picsum.photos/seed/${DateTime.now().millisecondsSinceEpoch}/512/512';
+
+        } catch (e) {
+          // ignore: avoid_print
+          print('MRO: JSON Parse Error: $e');
+          // Return a placeholder or the bucket image on error
+          return 'https://storage.googleapis.com/cms-storage-bucket/a9d6ce81aee44ae017ee.png';
+        }
       } else {
+        // ignore: avoid_print
         print('MRO: Google API Error: ${response.statusCode} - ${response.body}');
         throw Exception('Failed to generate image: ${response.statusCode}');
       }
     } catch(e) {
+       // ignore: avoid_print
        print('MRO: Network Error: $e');
        // Fallback
        return 'https://picsum.photos/seed/${DateTime.now().millisecondsSinceEpoch}/512/512';

@@ -52,51 +52,9 @@ class _ContributionFormState extends State<ContributionForm> {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch, // Stretch for inputs
       mainAxisSize: MainAxisSize.min,
       children: [
-          // Timer
-          BlocBuilder<CollectiveSessionBloc, CollectiveSessionState>(
-            builder: (context, state) {
-              if (state is CollectiveSessionActive) {
-                final minutes = state.remainingTime.inMinutes.remainder(60).toString().padLeft(2, '0');
-                final seconds = state.remainingTime.inSeconds.remainder(60).toString().padLeft(2, '0');
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 24.0),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.timer_outlined, color: TbpPalette.white, size: 16),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            '$minutes:$seconds',
-                            style: const TextStyle(
-                              color: TbpPalette.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Courier', 
-                            ),
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      // DEBUG: Fast Forward Button
-                      IconButton(
-                        onPressed: () {
-                           context.read<CollectiveSessionBloc>().add(DebugFastForwardRequested());
-                        }, 
-                        icon: const Icon(Icons.fast_forward, color: TbpPalette.error, size: 16),
-                        tooltip: 'Debug: Jump to 00:10',
-                      ),
-                    ],
-                  ),
-                );
-              }
-              return const SizedBox(height: 24); 
-            },
-          ),
           // Prompt Input
           Text(
             'Prompt', 
@@ -108,15 +66,19 @@ class _ContributionFormState extends State<ContributionForm> {
           const SizedBox(height: 8),
           TextFormField(
             controller: _promptController,
+            maxLines: 3, // Suggested for prompt
             decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white.withValues(alpha: 0.1), // Slight background, using withValues
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(15),
                 borderSide: const BorderSide(color: TbpPalette.white, width: 1.5),
               ),
               focusedBorder: OutlineInputBorder(
-                 borderRadius: BorderRadius.circular(12),
+                 borderRadius: BorderRadius.circular(15),
                  borderSide: const BorderSide(color: TbpPalette.white, width: 2),
               ),
+              contentPadding: const EdgeInsets.all(16),
             ),
             style: const TextStyle(color: TbpPalette.white),
           ),
@@ -135,14 +97,17 @@ class _ContributionFormState extends State<ContributionForm> {
           TextFormField(
             controller: _nameController,
              decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white.withValues(alpha: 0.1), // Using withValues
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(15),
                 borderSide: const BorderSide(color: TbpPalette.white, width: 1.5),
               ),
               focusedBorder: OutlineInputBorder(
-                 borderRadius: BorderRadius.circular(12),
+                 borderRadius: BorderRadius.circular(15),
                  borderSide: const BorderSide(color: TbpPalette.white, width: 2),
               ),
+              contentPadding: const EdgeInsets.all(16),
             ),
             style: const TextStyle(color: TbpPalette.white),
           ),
@@ -151,15 +116,16 @@ class _ContributionFormState extends State<ContributionForm> {
   
           // Submit Button
           ElevatedButton(
+            onPressed: _onSubmit,
             style: ElevatedButton.styleFrom(
               side: const BorderSide(color: TbpPalette.error, width: 1.5),
-              backgroundColor: const Color(0xFFD6A2B7), // Pinkish placeholder
-              foregroundColor: TbpPalette.black, // Dark text
+              backgroundColor: const Color(0xFFD6A2B7),
+              foregroundColor: TbpPalette.black,
                shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8), // matching inputs
+                borderRadius: BorderRadius.circular(15), 
               ),
+              fixedSize: const Size.fromHeight(50), // Taller button
             ),
-            onPressed: _onSubmit,
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
               child: Text('Submit'),

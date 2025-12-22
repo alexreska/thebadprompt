@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../design_system/palette.dart';
 import '../widgets/gallery_card.dart';
 
@@ -7,9 +8,10 @@ class GalleryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Brutalist header: Just big text.
+    final supabase = Supabase.instance.client;
+
     return Scaffold(
-      backgroundColor: TbpPalette.lilac, // Or use the gradient? Sticking to Lilac for difference
+      backgroundColor: const Color(0xffB5A0D6), // Lilac
       appBar: AppBar(
         title: Text(
           'ARCHIVE',
@@ -21,17 +23,44 @@ class GalleryPage extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
-        child: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3, // Desktop friendly. On mobile might need 1 or 2.
-            // responsiveness handled later or we use LayoutBuilder
-            crossAxisSpacing: 24,
-            mainAxisSpacing: 24,
-            childAspectRatio: 1.0, // Square images
-          ),
-          itemCount: 9, // Mock count
-          itemBuilder: (context, index) {
-            return GalleryCard(index: index);
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: supabase
+              .from('sessions')
+              .select()
+              .eq('status', 'finished')
+              .order('start_time', ascending: false) // Newest first
+              .limit(50)
+              .withConverter<List<Map<String, dynamic>>>((data) => List<Map<String, dynamic>>.from(data)),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: TbpPalette.white));
+            }
+            
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+
+            final sessions = snapshot.data ?? [];
+            if (sessions.isEmpty) {
+              return const Center(child: Text('No archives yet.', style: TextStyle(color: Colors.white)));
+            }
+
+            return GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2, 
+                crossAxisSpacing: 24,
+                mainAxisSpacing: 24,
+                childAspectRatio: 1.0,
+              ),
+              itemCount: sessions.length,
+              itemBuilder: (context, index) {
+                final session = sessions[index];
+                return GalleryCard(
+                  imageUrl: session['image_url'],
+                  sessionId: session['id'].toString(),
+                );
+              },
+            );
           },
         ),
       ),

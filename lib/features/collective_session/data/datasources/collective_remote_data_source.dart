@@ -119,13 +119,19 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
         .from('fragments')
         .stream(primaryKey: ['id'])
         .eq('session_id', sessionId)
-        .order('created_at')
-        .map((maps) => maps.map((map) => Fragment(
-              id: map['id'].toString(),
-              content: map['content'] ?? '',
-              authorName: 'Anon', // TODO: Join with profiles or store name in fragment
-              createdAt: DateTime.parse(map['created_at']),
-            )).toList());
+        .order('created_at', ascending: true)
+        .map((maps) {
+          final fragments = maps.map((map) => Fragment(
+            id: map['id'].toString(),
+            content: map['content'] ?? '',
+            authorName: 'Anon',
+            createdAt: DateTime.parse(map['created_at']),
+          )).toList();
+          
+          // Force sort by creation time ascending
+          fragments.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+          return fragments;
+        });
   }
 
   @override

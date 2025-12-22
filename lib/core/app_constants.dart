@@ -10,5 +10,5 @@ class AppConstants {
   // However, usually for image gen it is Imagen on Vertex AI or equivalent. 
   // For 'Gemini Pro Vision' text-to-image isn't standard in the text API.
   // We will assume the URL structure based on other Google Generative AI models.
-  static const String aiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=$aiApiKey';
+  static const String aiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=$aiApiKey';
 }

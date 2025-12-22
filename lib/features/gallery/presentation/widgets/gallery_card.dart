@@ -1,17 +1,33 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../../design_system/palette.dart';
+import '../pages/gallery_detail_page.dart';
 
 class GalleryCard extends StatelessWidget {
-  final int index;
+  final String? imageUrl;
+  final String sessionId;
 
-  const GalleryCard({super.key, required this.index});
+  const GalleryCard({
+    super.key, 
+    required this.imageUrl,
+    required this.sessionId,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Placeholder logic
-
-    return Container(
-      decoration: BoxDecoration(
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => GalleryDetailPage(
+              sessionId: sessionId,
+              imageUrl: imageUrl,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
         color: TbpPalette.white,
         border: Border.all(color: TbpPalette.black, width: 2),
       ),
@@ -19,13 +35,10 @@ class GalleryCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Image Placeholder (Abstract Art)
-          Image.network(
-            'https://picsum.photos/seed/${index + 100}/500',
-            fit: BoxFit.cover,
-          ),
+          // Image
+          _buildImage(),
           
-          // Overlay (Brutalist ID)
+          // Overlay (ID)
           Positioned(
             bottom: 0,
             left: 0,
@@ -34,15 +47,43 @@ class GalleryCard extends StatelessWidget {
               color: TbpPalette.black,
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               child: Text(
-                'EXP_#00${index + 1}',
+                'SESSION #$sessionId',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   color: TbpPalette.white,
+                  fontSize: 10,
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
         ],
       ),
+      ),
+    );
+  }
+
+  Widget _buildImage() {
+    if (imageUrl == null || imageUrl!.isEmpty) {
+      return const Center(child: Icon(Icons.broken_image, color: Colors.grey));
+    }
+
+    if (imageUrl!.startsWith('data:image')) {
+      try {
+        final base64String = imageUrl!.split(',').last;
+        return Image.memory(
+          base64Decode(base64String),
+          fit: BoxFit.cover,
+          errorBuilder: (c, o, s) => const Center(child: Icon(Icons.error)),
+        );
+      } catch (e) {
+        return const Center(child: Icon(Icons.error, color: Colors.red));
+      }
+    }
+
+    return Image.network(
+      imageUrl!,
+      fit: BoxFit.cover,
+      errorBuilder: (c, o, s) => const Center(child: Icon(Icons.broken_image)),
     );
   }
 }

@@ -140,7 +140,9 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
     final now = DateTime.now();
     // Assuming 7 minutes duration
     final endTime = startTime.add(const Duration(minutes: 7));
+    // final remaining = endTime.difference(now);
     final remaining = endTime.difference(now);
+    // print('DEBUG: Tick remaining: ${remaining.inSeconds}');
 
     if (remaining.isNegative) {
       add(TimerTicked(Duration.zero));
