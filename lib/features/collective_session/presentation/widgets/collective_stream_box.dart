@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../design_system/palette.dart';
-
-class CollectiveStreamBox extends StatelessWidget {
-  const CollectiveStreamBox({super.key});
-
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../design_system/palette.dart';
 import '../../presentation/bloc/collective_session_bloc.dart';
 
 class CollectiveStreamBox extends StatelessWidget {

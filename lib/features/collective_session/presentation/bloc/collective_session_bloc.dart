@@ -22,10 +22,6 @@ class FragmentSubmitted extends CollectiveSessionEvent {
   FragmentSubmitted(this.content);
 }
 
-class _FragmentsUpdated extends CollectiveSessionEvent {
-  final List<Fragment> fragments;
-  _FragmentsUpdated(this.fragments);
-}
 
 // States
 abstract class CollectiveSessionState extends Equatable {
@@ -66,7 +62,7 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
   }) : super(CollectiveSessionInitial()) {
     on<JoinSessionRequested>(_onJoinSessionRequested);
     on<FragmentSubmitted>(_onFragmentSubmitted);
-    on<_FragmentsUpdated>(_onFragmentsUpdated);
+
   }
 
   Future<void> _onJoinSessionRequested(JoinSessionRequested event, Emitter<CollectiveSessionState> emit) async {
@@ -77,8 +73,12 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
       // Subscribe to stream
       await emit.forEach(
         streamFragments(session.id),
-        onData: (List<Fragment> fragments) => _FragmentsUpdated(fragments),
-        onError: (_, __) => CollectiveSessionError('Failed to sync stream'),
+        onData: (List<Fragment> fragments) => CollectiveSessionActive(
+          session: session,
+          fragments: fragments,
+        ),
+        // onError: (error, stackTrace) => CollectiveSessionError('Failed to sync stream'),
+        onError: (error, _) => CollectiveSessionError('Failed to sync stream: $error'),
       );
       
       // Note: emit.forEach manages the subscription, but we need to set the initial state first?
@@ -91,15 +91,7 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
       
       // Let's simplify: Join gets the ID. Then we immediately start listening.
       // But we can't emit.forEach AND handle other events easily if we await it here.
-      // Correct way:
-      emit(CollectiveSessionActive(session: session));
       
-      // Start streaming by dispatching an internal subscription, or just using a StreamSubscription?
-      // Bloc makes this tricky. Usually we have a separate 'SubscriptionRequested' event.
-      // For now, I'll cheat and just listen to the stream and add events.
-      streamFragments(session.id).listen((fragments) {
-        add(_FragmentsUpdated(fragments));
-      });
 
     } catch (e) {
       emit(CollectiveSessionError(e.toString()));
@@ -118,10 +110,4 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
     }
   }
 
-  void _onFragmentsUpdated(_FragmentsUpdated event, Emitter<CollectiveSessionState> emit) {
-    final currentState = state;
-    if (currentState is CollectiveSessionActive) {
-      emit(CollectiveSessionActive(session: currentState.session, fragments: event.fragments));
-    }
-  }
 }
