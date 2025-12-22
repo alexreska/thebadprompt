@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/app_constants.dart';
 import 'design_system/palette.dart';
 import 'design_system/tbp_theme.dart';
 import 'features/collective_session/presentation/widgets/collective_stream_box.dart';
 import 'features/collective_session/presentation/widgets/contribution_form.dart';
+import 'injected_container.dart' as di;
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  await Supabase.initialize(
+    url: AppConstants.supabaseUrl,
+    anonKey: AppConstants.supabaseAnonKey,
+  );
+  
+  await di.init();
+
   runApp(const TbpApp());
 }
 

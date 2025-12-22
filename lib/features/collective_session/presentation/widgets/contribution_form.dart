@@ -57,15 +57,8 @@ class ContributionForm extends StatelessWidget {
         // Submit Button
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            side: const BorderSide(color: TbpPalette.error, width: 1.5), // Using "Error" red for Submit as seen in some brutalist designs? Or maybe pink? User image had a button.
-            // Wait, standard theme is black button. User image might show something else. 
-            // I'll stick to a visible border button with pinkish fill if requested?
-            // User requested "Identical". The text didn't specify color.
-            // I'll make it TbpPalette.lilac mixed or just transparent with border.
-            // Let's go with a transparent button with a specific border color.
-            backgroundColor: const Color(0xFFD6A2B7), // Adding a pinkish placeholder to match typical 'lilac' themes
+            side: const BorderSide(color: TbpPalette.error, width: 1.5),
+            backgroundColor: const Color(0xFFD6A2B7), // Pinkish placeholder
             foregroundColor: TbpPalette.black, // Dark text
              shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8), // matching inputs
