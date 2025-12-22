@@ -9,7 +9,6 @@ class GalleryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Placeholder logic
-    final isHovered = false; // We would need a MouseRegion for real hover
 
     return Container(
       decoration: BoxDecoration(

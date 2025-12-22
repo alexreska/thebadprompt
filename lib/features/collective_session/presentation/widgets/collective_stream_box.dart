@@ -12,7 +12,7 @@ class CollectiveStreamBox extends StatelessWidget {
       height: 400, // Fixed height or flexible? User said "box".
       padding: const EdgeInsets.all(24.0),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15), // Glassy/translucent
+        color: Colors.white.withValues(alpha: 0.15), // Glassy/translucent
         border: Border.all(color: TbpPalette.white, width: 1.5),
         borderRadius: BorderRadius.circular(16), // Slight rounding as per 'modern' conventions seen in typical designs, adjusting slightly away from pure brutalist if needed, but let's stick to theme if possible. 
         // User said "Identical". If the image had rounded corners, I should add them. 

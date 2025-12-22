@@ -9,7 +9,6 @@ abstract class TbpTheme {
       scaffoldBackgroundColor: TbpPalette.lilac, // Fallback color
       colorScheme: ColorScheme.fromSeed(
         seedColor: TbpPalette.lilac,
-        background: TbpPalette.lilac,
       ),
       textTheme: TbpTypography.textTheme,
       elevatedButtonTheme: ElevatedButtonThemeData(

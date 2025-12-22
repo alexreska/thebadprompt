@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../design_system/palette.dart';
-import 'widgets/gallery_card.dart';
+import '../widgets/gallery_card.dart';
 
 class GalleryPage extends StatelessWidget {
   const GalleryPage({super.key});
