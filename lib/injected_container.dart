@@ -9,6 +9,9 @@ import 'features/collective_session/domain/usecases/join_session.dart';
 import 'features/collective_session/domain/usecases/submit_fragment.dart';
 import 'features/collective_session/domain/usecases/stream_fragments.dart';
 import 'features/collective_session/domain/usecases/debug_fast_forward.dart';
+import 'features/collective_session/domain/usecases/join_queue.dart';
+import 'features/collective_session/domain/usecases/submit_queue_fragment.dart';
+import 'features/collective_session/domain/usecases/get_queue_status.dart';
 import 'features/collective_session/presentation/bloc/collective_session_bloc.dart';
 
 final sl = GetIt.instance;
@@ -27,6 +30,9 @@ Future<void> init() async {
 
       streamFragments: sl(),
       debugFastForward: sl(),
+      joinQueue: sl(),
+      submitQueueFragment: sl(),
+      getQueueStatus: sl(),
     ),
   );
 
@@ -36,6 +42,9 @@ Future<void> init() async {
 
   sl.registerLazySingleton(() => StreamFragments(sl()));
   sl.registerLazySingleton(() => DebugFastForward(sl()));
+  sl.registerLazySingleton(() => JoinQueue(sl()));
+  sl.registerLazySingleton(() => SubmitQueueFragment(sl()));
+  sl.registerLazySingleton(() => GetQueueStatus(sl()));
 
   // Repository
   sl.registerLazySingleton<CollectiveRepository>(

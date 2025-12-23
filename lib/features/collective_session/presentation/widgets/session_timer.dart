@@ -16,13 +16,13 @@ class SessionTimer extends StatelessWidget {
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
-            children: [
-               const Icon(Icons.timer_outlined, color: TbpPalette.white, size: 24),
+             children: [
+               const Icon(Icons.timer_outlined, color: TbpPalette.darkViolet, size: 24),
                const SizedBox(width: 8),
                Text(
                  '$minutes:$seconds',
                  style: const TextStyle(
-                   color: TbpPalette.white,
+                   color: TbpPalette.darkViolet,
                    fontSize: 24,
                    fontWeight: FontWeight.bold,
                    fontFamily: 'Courier', 
@@ -35,7 +35,7 @@ class SessionTimer extends StatelessWidget {
                  onPressed: () {
                     context.read<CollectiveSessionBloc>().add(DebugFastForwardRequested());
                  }, 
-                 icon: const Icon(Icons.fast_forward, color: TbpPalette.error, size: 24),
+                 icon: const Icon(Icons.fast_forward, color: TbpPalette.darkViolet, size: 24),
                  tooltip: 'Debug: Jump to 00:10',
                ),
             ],

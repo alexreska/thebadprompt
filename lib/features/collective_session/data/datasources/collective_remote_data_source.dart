@@ -5,7 +5,10 @@ import 'generation_remote_data_source.dart';
 
 abstract class CollectiveRemoteDataSource {
   Future<TbpSession> joinSession(String username);
-  Future<void> submitFragment(String sessionId, String fragment, String authorName);
+  Future<void> submitFragment({required String sessionId, required String content, required String? authorName});
+  Future<String> joinQueue({required String sessionId, required String name, required String deviceId});
+  Future<Map<String, dynamic>> getQueueStatus({required String sessionId, required String queueId});
+  Future<void> submitFragmentWithQueue({required String sessionId, required String content, required String authorName, required String deviceId});
   Stream<List<Fragment>> streamFragments(String sessionId);
   Future<void> fastForwardSession(String sessionId);
 }
@@ -106,16 +109,98 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
   }
 
   @override
-  Future<void> submitFragment(String sessionId, String fragment, String authorName) async {
-    // Insert into 'fragments'
-    final userId = supabaseClient.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
+  Future<void> submitFragment({required String sessionId, required String content, required String? authorName}) async {
+    await supabaseClient
+        .from('fragments') // Checked: Table is 'fragments'
+        .insert({
+          'session_id': sessionId,
+          'content': content,
+          'author_name': authorName ?? 'Anon',
+          'created_at': DateTime.now().toIso8601String(),
+        });
+  }
 
-    await supabaseClient.from('fragments').insert({
-      'session_id': sessionId,
-      'content': fragment,
-      'user_id': userId,
-      'author_name': authorName,
+  @override
+  Future<String> joinQueue({required String sessionId, required String name, required String deviceId}) async {
+    final response = await supabaseClient.rpc('join_queue', params: {
+      'p_session_id': int.parse(sessionId), // BIGINT expects int matching
+      'p_name': name,
+      'p_device_id': deviceId,
+    });
+    return response as String;
+  }
+
+  @override
+  Future<Map<String, dynamic>> getQueueStatus({required String sessionId, required String queueId}) async {
+    // 1. Get Session Info (current turn)
+    final sessionData = await supabaseClient
+        .from('sessions')
+        .select('current_queue_id, turn_expires_at')
+        .eq('id', sessionId)
+        .single();
+    
+    final currentQueueId = sessionData['current_queue_id'] as String?;
+    final turnExpiresAt = sessionData['turn_expires_at'] != null 
+        ? DateTime.parse(sessionData['turn_expires_at'] as String) 
+        : null;
+
+    if (currentQueueId == queueId) {
+      return {
+        'status': 'active',
+        'position': 0,
+        'turnExpiresAt': turnExpiresAt,
+      };
+    }
+
+    // 2. Get My Queue Info
+    final myQueueData = await supabaseClient
+        .from('session_queue')
+        .select('created_at, status')
+        .eq('id', queueId)
+        .maybeSingle(); // Use maybeSingle to handle if deleted/completed
+
+    if (myQueueData == null) {
+       return {'status': 'none'};
+    }
+    
+    final myStatus = myQueueData['status'] as String;
+    if (myStatus == 'completed') return {'status': 'completed'};
+    if (myStatus == 'active') {
+       // Should have matched above, but maybe delay.
+       return {
+        'status': 'active',
+        'position': 0,
+        'turnExpiresAt': turnExpiresAt,
+      };
+    }
+    
+    // 3. Calculate Position (waiting ahead of me)
+    final myCreatedAt = DateTime.parse(myQueueData['created_at'] as String);
+    
+    final countResponse = await supabaseClient
+        .from('session_queue')
+        .select('id') // just count
+        .eq('session_id', sessionId)
+        .eq('status', 'waiting')
+        .lt('created_at', myCreatedAt.toIso8601String())
+        .count(CountOption.exact); // Request count
+
+    final position = countResponse.count + 1; // logical position 1st, 2nd...
+
+    return {
+      'status': 'waiting',
+      'position': position,
+      'turnExpiresAt': turnExpiresAt, // Needed? Maybe to show "Current turn ends in..."
+    };
+  }
+
+  @override
+  Future<void> submitFragmentWithQueue({required String sessionId, required String content, required String authorName, required String deviceId}) async {
+    await supabaseClient.rpc('submit_fragment_with_queue', params: {
+      'p_session_id': int.parse(sessionId),
+      'p_content': content,
+      'p_author_name': authorName,
+      'p_device_id': deviceId,
     });
   }
 

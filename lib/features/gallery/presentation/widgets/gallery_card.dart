@@ -29,34 +29,38 @@ class GalleryCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
         color: TbpPalette.white,
-        border: Border.all(color: TbpPalette.black, width: 2),
+        borderRadius: BorderRadius.circular(10), // Radius 10px
+        border: Border.all(color: TbpPalette.darkViolet, width: 2), // Dark Violet Border
       ),
       clipBehavior: Clip.antiAlias,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Image
-          _buildImage(),
-          
-          // Overlay (ID)
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              color: TbpPalette.black,
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              child: Text(
-                'SESSION #$sessionId',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: TbpPalette.white,
-                  fontSize: 10,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Image
+            _buildImage(),
+            
+            // Overlay (ID)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: TbpPalette.darkViolet, // Dark Violet Overlay
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                child: Text(
+                  'SESSION #$sessionId',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: TbpPalette.white,
+                    fontSize: 10,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       ),
     );

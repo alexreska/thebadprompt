@@ -5,6 +5,14 @@ abstract class TbpPalette {
   static const Color lilac = Color(0xFFC6ADC5);
   static const Color periwinkle = Color(0xFFB0B4E1);
 
+  // User requested accents
+  static const Color darkViolet = Color(0xFF2E003E);
+  static const Color fuchsia = Color(0xFFFF00FF);
+  // Using a very light lavender for background to support dark violet text
+  static const Color lightBackground = Color(0xFFF5F0F5);
+  // Menu background from screenshot ref
+  static const Color menuBackground = Color(0xFF14001A);
+
   static const LinearGradient backgroundGradient = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,

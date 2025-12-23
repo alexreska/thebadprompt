@@ -11,18 +11,22 @@ class GalleryPage extends StatelessWidget {
     final supabase = Supabase.instance.client;
 
     return Scaffold(
-      backgroundColor: const Color(0xffB5A0D6), // Lilac
+      backgroundColor: TbpPalette.lightBackground, // Light Violet
       appBar: AppBar(
         title: Text(
           'ARCHIVE',
-          style: Theme.of(context).textTheme.displayMedium,
+          style: Theme.of(context).textTheme.displayMedium?.copyWith(
+            color: TbpPalette.darkViolet,
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+          ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10.0), // Less top pad
         child: FutureBuilder<List<Map<String, dynamic>>>(
           future: supabase
               .from('sessions')
@@ -33,16 +37,16 @@ class GalleryPage extends StatelessWidget {
               .withConverter<List<Map<String, dynamic>>>((data) => List<Map<String, dynamic>>.from(data)),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: TbpPalette.white));
+              return const Center(child: CircularProgressIndicator(color: TbpPalette.darkViolet));
             }
             
             if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
+              return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: TbpPalette.error)));
             }
 
             final sessions = snapshot.data ?? [];
             if (sessions.isEmpty) {
-              return const Center(child: Text('No archives yet.', style: TextStyle(color: Colors.white)));
+              return const Center(child: Text('No archives yet.', style: TextStyle(color: TbpPalette.darkViolet)));
             }
 
             return GridView.builder(

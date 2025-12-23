@@ -13,7 +13,10 @@ class GenerationRemoteDataSourceImpl implements GenerationRemoteDataSource {
 
   @override
   Future<String> generateImage(String prompt) async {
-    final url = Uri.parse('${AppConstants.aiEndpoint}&key=${AppConstants.aiApiKey}'); 
+    final url = Uri.parse(AppConstants.aiEndpoint);
+    
+    // ignore: avoid_print
+    print('MRO: Using API Key: ${AppConstants.aiApiKey.isNotEmpty ? "${AppConstants.aiApiKey.substring(0, 5)}..." : "EMPTY OR MISSING"}');
     
     // Note: Gemini Pro Vision is primarily for inputting images. For generating images, Google usually uses Imagen.
     // But since the user saw 'gemini-3-pro-image-preview', we will try a generic prompt structure.
@@ -38,7 +41,7 @@ class GenerationRemoteDataSourceImpl implements GenerationRemoteDataSource {
         },
         body: jsonEncode({
           'contents': [{
-            'parts': [{'text': 'Generate an image of: $prompt'}]
+            'parts': [{'text': 'Generate an image of: $prompt. Style: artistic, high quality. Aspect Ratio: 1:1 square.'}]
           }]
         }),
       );

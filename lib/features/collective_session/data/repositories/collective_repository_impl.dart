@@ -15,7 +15,23 @@ class CollectiveRepositoryImpl implements CollectiveRepository {
 
   @override
   Future<void> submitFragment(String sessionId, String fragment, String authorName) {
-    return remoteDataSource.submitFragment(sessionId, fragment, authorName);
+    // Legacy direct submit (keep for now or refactor to use queue internally if needed, but we have a dedicated method)
+    return remoteDataSource.submitFragment(sessionId: sessionId, content:  fragment, authorName: authorName);
+  }
+
+  @override
+  Future<String> joinQueue({required String sessionId, required String name, required String deviceId}) {
+    return remoteDataSource.joinQueue(sessionId: sessionId, name: name, deviceId: deviceId);
+  }
+
+  @override
+  Future<Map<String, dynamic>> getQueueStatus({required String sessionId, required String queueId}) {
+    return remoteDataSource.getQueueStatus(sessionId: sessionId, queueId: queueId);
+  }
+
+  @override
+  Future<void> submitFragmentWithQueue({required String sessionId, required String content, required String authorName, required String deviceId}) {
+    return remoteDataSource.submitFragmentWithQueue(sessionId: sessionId, content: content, authorName: authorName, deviceId: deviceId);
   }
 
   @override

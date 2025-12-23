@@ -14,8 +14,8 @@ class CollectiveStreamBox extends StatelessWidget {
       height: 400, // Fixed height or flexible? User said "box".
       padding: const EdgeInsets.all(24.0),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15), // Glassy/translucent
-        border: Border.all(color: TbpPalette.white, width: 1.5),
+        color: TbpPalette.darkViolet.withValues(alpha: 0.05), // Light Violet BG matches inputs
+        border: Border.all(color: TbpPalette.darkViolet, width: 1.5),
         borderRadius: BorderRadius.circular(16), 
       ),
       child: BlocBuilder<CollectiveSessionBloc, CollectiveSessionState>(
@@ -31,7 +31,7 @@ class CollectiveStreamBox extends StatelessWidget {
                   return Text(
                     fragment.content,
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          color: TbpPalette.white,
+                          color: TbpPalette.darkViolet,
                           height: 1.4,
                         ),
                   );
@@ -39,7 +39,7 @@ class CollectiveStreamBox extends StatelessWidget {
               ),
             );
           } else if (state is CollectiveSessionLoading) {
-            return const Center(child: CircularProgressIndicator(color: TbpPalette.white));
+            return const Center(child: CircularProgressIndicator(color: TbpPalette.darkViolet));
           } else if (state is CollectiveSessionError) {
              return Center(child: Text('Error: ${state.message}', style: const TextStyle(color: TbpPalette.error)));
           }
@@ -48,7 +48,7 @@ class CollectiveStreamBox extends StatelessWidget {
             child: Text(
               'Waiting for authors...', 
               style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  color: TbpPalette.white.withValues(alpha: 0.5),
+                  color: TbpPalette.darkViolet.withValues(alpha: 0.5),
                 ),
             ),
           );

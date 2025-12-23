@@ -23,139 +23,252 @@ class _ContributionFormState extends State<ContributionForm> {
     super.dispose();
   }
 
-  void _onSubmit() {
-    final prompt = _promptController.text;
-    final name = _nameController.text;
-    if (prompt.isEmpty || name.isEmpty) return;
 
-    final bloc = context.read<CollectiveSessionBloc>();
-    final state = bloc.state;
 
-    if (state is CollectiveSessionInitial || state is CollectiveSessionError) {
-      // First time interaction: Join then Submit?
-      // For simplicity, we trigger Join. The user might need to click twice or we handle standard queuing.
-      // Better: trigger Join. Logic inside Bloc could handle "JoinAndSubmit"?
-      // For now: Just Join. User will see "Joined" state presumably.
-      bloc.add(JoinSessionRequested(name));
-      // Ideally we wait for join to complete before submitting.
-      // We can listen to state changes here or just let the user click again.
-      // Let's assume for this MVP, we join first.
-    } 
-    
-    // If active, submit
-    if (state is CollectiveSessionActive) {
-      bloc.add(FragmentSubmitted(prompt, name));
-      _promptController.clear(); // Clear prompt after send
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch, // Stretch for inputs
-      mainAxisSize: MainAxisSize.min,
-      children: [
-          // Prompt Input
-          Text(
-            'Prompt', 
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: TbpPalette.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _promptController,
-            autocorrect: false,
-            enableSuggestions: false,
-            maxLines: 3, // Suggested for prompt
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.1), // Slight background, using withValues
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: const BorderSide(color: TbpPalette.white, width: 1.5),
-              ),
-              focusedBorder: OutlineInputBorder(
-                 borderRadius: BorderRadius.circular(15),
-                 borderSide: const BorderSide(color: TbpPalette.white, width: 2),
-              ),
-              contentPadding: const EdgeInsets.all(16),
-            ),
-            style: const TextStyle(color: TbpPalette.white),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Name Input
-          Text(
-            'Your Name', 
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: TbpPalette.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-           const SizedBox(height: 8),
-          TextFormField(
-            controller: _nameController,
-            autocorrect: false,
-            enableSuggestions: false,
-             decoration: InputDecoration(
-              filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.1), // Using withValues
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: const BorderSide(color: TbpPalette.white, width: 1.5),
-              ),
-              focusedBorder: OutlineInputBorder(
-                 borderRadius: BorderRadius.circular(15),
-                 borderSide: const BorderSide(color: TbpPalette.white, width: 2),
-              ),
-              contentPadding: const EdgeInsets.all(16),
-            ),
-            style: const TextStyle(color: TbpPalette.white),
-          ),
-  
-          const SizedBox(height: 32),
-  
-          // Submit Button
-          ElevatedButton(
-            onPressed: _onSubmit,
-            style: ElevatedButton.styleFrom(
-              side: const BorderSide(color: TbpPalette.error, width: 1.5),
-              backgroundColor: const Color(0xFFD6A2B7),
-              foregroundColor: TbpPalette.black,
-               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15), 
-              ),
-              fixedSize: const Size.fromHeight(50), // Taller button
-            ),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              child: Text('Submit'),
-            ),
-          ),
-  
-          const SizedBox(height: 32),
-                  
-          // Archive Link
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
+    return BlocBuilder<CollectiveSessionBloc, CollectiveSessionState>(
+      builder: (context, state) {
+        // If not active or error, just show empty or loading?
+        // Actually prompt "Join Session" generic if initial?
+        if (state is! CollectiveSessionActive) {
+           return const Center(child: CircularProgressIndicator(color: TbpPalette.darkViolet));
+        }
+
+        final queueStatus = state.queueStatus;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // DYNAMIC CONTENT BASED ON QUEUE STATE
+            if (queueStatus == QueueStatus.none || queueStatus == QueueStatus.completed || queueStatus == QueueStatus.skipped)
+              _buildJoinState(context, queueStatus),
+            
+            if (queueStatus == QueueStatus.joining)
+               const Padding(
+                 padding: EdgeInsets.all(32.0),
+                 child: Center(child: CircularProgressIndicator(color: TbpPalette.darkViolet)),
+               ),
+
+            if (queueStatus == QueueStatus.waiting)
+              _buildWaitingState(context, state.queuePosition ?? 99),
+
+            if (queueStatus == QueueStatus.active)
+              _buildActiveState(context, state.turnRemainingTime),
+
+            const SizedBox(height: 32),
+
+            // Archive Link (Always Visible)
+            ElevatedButton(
               onPressed: () {
                  Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const GalleryPage()),
                 );
               },
-              child: Text(
-                'VIEW ARCHIVE',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  decoration: TextDecoration.underline,
-                  color: TbpPalette.white,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: TbpPalette.lilac,
+                foregroundColor: TbpPalette.darkViolet,
+                 shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15), 
                 ),
+                fixedSize: const Size.fromHeight(50), 
+                elevation: 4,
+                shadowColor: TbpPalette.lilac.withValues(alpha: 0.4),
+                textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
+              child: const Text('VIEW ARCHIVE'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildJoinState(BuildContext context, QueueStatus status) {
+    String title = 'Join the Collective';
+    if (status == QueueStatus.completed) title = 'Great Contribution! Go again?';
+    if (status == QueueStatus.skipped) title = 'Turn Expired. Try again?';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            color: TbpPalette.darkViolet,
+            fontWeight: FontWeight.bold,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Your Name', 
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: TbpPalette.darkViolet,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _nameController,
+          autocorrect: false,
+          enableSuggestions: false,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: TbpPalette.darkViolet.withValues(alpha: 0.05),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: const BorderSide(color: TbpPalette.darkViolet, width: 1.5),
+            ),
+            focusedBorder: OutlineInputBorder(
+               borderRadius: BorderRadius.circular(15),
+               borderSide: const BorderSide(color: TbpPalette.darkViolet, width: 2),
+            ),
+            contentPadding: const EdgeInsets.all(16),
+            hintText: 'Enter your alias...',
+            hintStyle: TextStyle(color: TbpPalette.darkViolet.withValues(alpha: 0.5)),
+          ),
+          style: const TextStyle(color: TbpPalette.darkViolet),
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: () {
+            final name = _nameController.text;
+            if (name.isNotEmpty) {
+               context.read<CollectiveSessionBloc>().add(JoinQueueRequested(name));
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: TbpPalette.lilac, 
+            foregroundColor: TbpPalette.darkViolet, 
+             shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15), 
+            ),
+            fixedSize: const Size.fromHeight(50), 
+            elevation: 4,
+            shadowColor: TbpPalette.lilac.withValues(alpha: 0.4),
+            textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          child: const Text('JOIN QUEUE'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWaitingState(BuildContext context, int position) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: TbpPalette.darkViolet.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: TbpPalette.darkViolet, width: 1),
+      ),
+      child: Column(
+        children: [
+          const CircularProgressIndicator(color: TbpPalette.darkViolet),
+          const SizedBox(height: 16),
+          Text(
+            'Limit reached or Line full?',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: TbpPalette.darkViolet),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'You are #$position in line',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: TbpPalette.darkViolet,
+              fontWeight: FontWeight.bold,
             ),
           ),
+          const SizedBox(height: 8),
+          Text(
+            'Prepare your word...',
+             style: Theme.of(context).textTheme.bodySmall?.copyWith(color: TbpPalette.darkViolet.withValues(alpha: 0.7)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveState(BuildContext context, Duration remaining) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Countdown
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+             color: TbpPalette.darkViolet,
+             borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+               const Icon(Icons.timer, color: TbpPalette.lilac),
+               const SizedBox(width: 8),
+               Text(
+                 'YOUR TURN! ${remaining.inSeconds}s left',
+                 style: const TextStyle(
+                   color: TbpPalette.lilac, 
+                   fontWeight: FontWeight.bold,
+                   fontSize: 18,
+                 ),
+               ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'One Word Only', 
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: TbpPalette.darkViolet,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _promptController,
+          autocorrect: false,
+          enableSuggestions: false,
+          autofocus: true, // Focus immediately!
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: TbpPalette.white,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: const BorderSide(color: TbpPalette.darkViolet, width: 2),
+            ),
+            focusedBorder: OutlineInputBorder(
+               borderRadius: BorderRadius.circular(15),
+               borderSide: const BorderSide(color: TbpPalette.darkViolet, width: 3),
+            ),
+            contentPadding: const EdgeInsets.all(16),
+          ),
+          style: const TextStyle(color: TbpPalette.darkViolet, fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: () {
+            final content = _promptController.text;
+            if (content.isNotEmpty) {
+               context.read<CollectiveSessionBloc>().add(SubmitQueueFragmentRequested(content));
+               _promptController.clear();
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: TbpPalette.lilac, 
+            foregroundColor: TbpPalette.darkViolet, 
+             shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15), 
+            ),
+            fixedSize: const Size.fromHeight(50), 
+            elevation: 4,
+            shadowColor: TbpPalette.lilac.withValues(alpha: 0.4),
+            textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          child: const Text('SUBMIT'),
+        ),
       ],
     );
   }
