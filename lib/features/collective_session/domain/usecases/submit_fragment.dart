@@ -5,7 +5,7 @@ class SubmitFragment {
 
   SubmitFragment(this.repository);
 
-  Future<void> call(String sessionId, String fragment) {
-    return repository.submitFragment(sessionId, fragment);
+  Future<void> call(String sessionId, String fragment, String authorName) {
+    return repository.submitFragment(sessionId, fragment, authorName);
   }
 }

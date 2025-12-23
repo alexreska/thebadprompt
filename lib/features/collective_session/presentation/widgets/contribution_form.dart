@@ -44,7 +44,7 @@ class _ContributionFormState extends State<ContributionForm> {
     
     // If active, submit
     if (state is CollectiveSessionActive) {
-      bloc.add(FragmentSubmitted(prompt));
+      bloc.add(FragmentSubmitted(prompt, name));
       _promptController.clear(); // Clear prompt after send
     }
   }
@@ -66,6 +66,8 @@ class _ContributionFormState extends State<ContributionForm> {
           const SizedBox(height: 8),
           TextFormField(
             controller: _promptController,
+            autocorrect: false,
+            enableSuggestions: false,
             maxLines: 3, // Suggested for prompt
             decoration: InputDecoration(
               filled: true,
@@ -96,6 +98,8 @@ class _ContributionFormState extends State<ContributionForm> {
            const SizedBox(height: 8),
           TextFormField(
             controller: _nameController,
+            autocorrect: false,
+            enableSuggestions: false,
              decoration: InputDecoration(
               filled: true,
               fillColor: Colors.white.withValues(alpha: 0.1), // Using withValues

@@ -54,7 +54,7 @@ class GalleryDetailPage extends StatelessWidget {
                   FutureBuilder<List<Map<String, dynamic>>>(
                     future: Supabase.instance.client
                         .from('fragments')
-                        .select('content, created_at') // Add author_name if/when available
+                        .select('content, created_at, author_name')
                         .eq('session_id', sessionId)
                         .order('created_at', ascending: true)
                         .withConverter<List<Map<String, dynamic>>>((data) => List<Map<String, dynamic>>.from(data)),
@@ -93,7 +93,7 @@ class GalleryDetailPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            fragments.isEmpty ? 'Unknown' : List.generate(fragments.length, (i) => 'Anon User ${i+1}').join(', '),
+                            fragments.isEmpty ? 'Unknown' : fragments.map((f) => f['author_name'] as String? ?? 'Anon').join(', '),
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: TbpPalette.white),
                           ),
                         ],

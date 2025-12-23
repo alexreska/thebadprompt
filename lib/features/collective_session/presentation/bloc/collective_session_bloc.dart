@@ -23,9 +23,10 @@ class JoinSessionRequested extends CollectiveSessionEvent {
 
 class FragmentSubmitted extends CollectiveSessionEvent {
   final String content;
-  FragmentSubmitted(this.content);
+  final String authorName;
+  FragmentSubmitted(this.content, this.authorName);
   @override
-  List<Object> get props => [content];
+  List<Object> get props => [content, authorName];
 }
 
 class FragmentsUpdated extends CollectiveSessionEvent {
@@ -163,7 +164,7 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
     final currentState = state;
     if (currentState is CollectiveSessionActive) {
       try {
-        await submitFragment(currentState.session.id, event.content);
+        await submitFragment(currentState.session.id, event.content, event.authorName);
         // Success? The stream will update the UI.
       } catch (e) {
         // Show error

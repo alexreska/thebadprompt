@@ -5,7 +5,7 @@ import 'generation_remote_data_source.dart';
 
 abstract class CollectiveRemoteDataSource {
   Future<TbpSession> joinSession(String username);
-  Future<void> submitFragment(String sessionId, String fragment);
+  Future<void> submitFragment(String sessionId, String fragment, String authorName);
   Stream<List<Fragment>> streamFragments(String sessionId);
   Future<void> fastForwardSession(String sessionId);
 }
@@ -48,12 +48,19 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
          // 1. Fetch fragments to construct prompt
          final fragmentsResponse = await supabaseClient
              .from('fragments')
-             .select('content')
+             .select('content, created_at')
              .eq('session_id', session['id'])
-             .order('created_at');
+             .order('created_at', ascending: true);
              
-         final fragmentsData = fragmentsResponse as List<dynamic>;
-         final fullPrompt = fragmentsData.map((f) => f['content'] as String).join(' ');
+         final fragmentsList = (fragmentsResponse as List<dynamic>).map((e) => {
+           'content': e['content'],
+           'created_at': DateTime.parse(e['created_at'])
+         }).toList();
+         
+         // Force Sort Ascending
+         fragmentsList.sort((a, b) => (a['created_at'] as DateTime).compareTo(b['created_at'] as DateTime));
+         
+         final fullPrompt = fragmentsList.map((f) => f['content'] as String).join(' ');
          
          String? imageUrl;
          if (fullPrompt.trim().isNotEmpty) {
@@ -99,7 +106,7 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
   }
 
   @override
-  Future<void> submitFragment(String sessionId, String fragment) async {
+  Future<void> submitFragment(String sessionId, String fragment, String authorName) async {
     // Insert into 'fragments'
     final userId = supabaseClient.auth.currentUser?.id;
     if (userId == null) throw Exception('Not authenticated');
@@ -108,8 +115,7 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
       'session_id': sessionId,
       'content': fragment,
       'user_id': userId,
-      // 'author_name': username // Typically stored in a 'profiles' table, but for speed we might send it here? 
-      // User requested "Alex my part of prompt". The name is in the input.
+      'author_name': authorName,
     });
   }
 
@@ -124,7 +130,7 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
           final fragments = maps.map((map) => Fragment(
             id: map['id'].toString(),
             content: map['content'] ?? '',
-            authorName: 'Anon',
+            authorName: map['author_name'] ?? 'Anon',
             createdAt: DateTime.parse(map['created_at']),
           )).toList();
           

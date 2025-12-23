@@ -14,8 +14,8 @@ class CollectiveRepositoryImpl implements CollectiveRepository {
   }
 
   @override
-  Future<void> submitFragment(String sessionId, String fragment) {
-    return remoteDataSource.submitFragment(sessionId, fragment);
+  Future<void> submitFragment(String sessionId, String fragment, String authorName) {
+    return remoteDataSource.submitFragment(sessionId, fragment, authorName);
   }
 
   @override
