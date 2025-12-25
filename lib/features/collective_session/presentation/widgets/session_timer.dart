@@ -11,6 +11,29 @@ class SessionTimer extends StatelessWidget {
     return BlocBuilder<CollectiveSessionBloc, CollectiveSessionState>(
       builder: (context, state) {
         if (state is CollectiveSessionActive) {
+          if (state.isGenerating) {
+            return const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 24, 
+                  height: 24, 
+                  child: CircularProgressIndicator(color: TbpPalette.darkViolet, strokeWidth: 2),
+                ),
+                SizedBox(width: 12),
+                Text(
+                  'GENERATING ART...',
+                  style: TextStyle(
+                    color: TbpPalette.darkViolet,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Courier', 
+                  ),
+                ),
+              ],
+            );
+          }
+
           final minutes = state.remainingTime.inMinutes.remainder(60).toString().padLeft(2, '0');
           final seconds = state.remainingTime.inSeconds.remainder(60).toString().padLeft(2, '0');
           return Row(

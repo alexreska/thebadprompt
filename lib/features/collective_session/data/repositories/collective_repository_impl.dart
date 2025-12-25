@@ -40,6 +40,16 @@ class CollectiveRepositoryImpl implements CollectiveRepository {
   }
 
   @override
+  Stream<TbpSession> streamSession(String sessionId) {
+    return remoteDataSource.streamSession(sessionId);
+  }
+
+  @override
+  Future<String?> expireSession(String sessionId) {
+    return remoteDataSource.expireSession(sessionId);
+  }
+
+  @override
   Future<void> fastForwardSession(String sessionId) async {
     return remoteDataSource.fastForwardSession(sessionId);
   }

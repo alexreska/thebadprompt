@@ -6,7 +6,8 @@ class AppConstants {
   // Google AI Generation (Gemini)
   // Google AI Generation (Gemini)
   // Usage: flutter run --dart-define=AI_API_KEY=your_key_here
-  static const String aiApiKey = String.fromEnvironment('AI_API_KEY');
+  // Usage: flutter run --dart-define=AI_API_KEY=your_key_here
+  static const String aiApiKey = String.fromEnvironment('AI_API_KEY', defaultValue: 'AIzaSyD37dmJLUCmu2AJ4MRzfa1qYXzqHNsyWUU');
   
   // Note: 'gemini-3-pro-image-preview' isn't a standard public endpoint yet in public docs, 
   // but we will try the standard v1beta/models/PATTERN:predict or similar. 

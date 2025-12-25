@@ -10,7 +10,9 @@ abstract class CollectiveRemoteDataSource {
   Future<Map<String, dynamic>> getQueueStatus({required String sessionId, required String queueId});
   Future<void> submitFragmentWithQueue({required String sessionId, required String content, required String authorName, required String deviceId});
   Stream<List<Fragment>> streamFragments(String sessionId);
+  Stream<TbpSession> streamSession(String sessionId);
   Future<void> fastForwardSession(String sessionId);
+  Future<String?> expireSession(String sessionId); // Change return type
 }
 
 
@@ -47,44 +49,8 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
 
        if (diff.inMinutes >= 7) {
          // Expire this old session
-         
-         // 1. Fetch fragments to construct prompt
-         final fragmentsResponse = await supabaseClient
-             .from('fragments')
-             .select('content, created_at')
-             .eq('session_id', session['id'])
-             .order('created_at', ascending: true);
-             
-         final fragmentsList = (fragmentsResponse as List<dynamic>).map((e) => {
-           'content': e['content'],
-           'created_at': DateTime.parse(e['created_at'])
-         }).toList();
-         
-         // Force Sort Ascending
-         fragmentsList.sort((a, b) => (a['created_at'] as DateTime).compareTo(b['created_at'] as DateTime));
-         
-         final fullPrompt = fragmentsList.map((f) => f['content'] as String).join(' ');
-         
-         String? imageUrl;
-         if (fullPrompt.trim().isNotEmpty) {
-             try {
-                imageUrl = await generationDataSource.generateImage(fullPrompt);
-             } catch (e) {
-                // ignore: avoid_print
-                print('Error generating image: $e');
-             }
-         }
-
-         // 2. Update session
-         await supabaseClient
-            .from('sessions')
-            .update({
-              'status': 'finished',
-              'image_url': imageUrl,
-            })
-            .eq('id', session['id']);
+         await expireSession(session['id'].toString());
        } else {
-
          // Found a valid active session
          return TbpSession(
            id: session['id'].toString(),
@@ -95,6 +61,7 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
     }
 
     // No valid active session found, create new one
+    // ... existing creation logic ...
     final nowUtc = DateTime.now().toUtc().toIso8601String();
     final newSession = await supabaseClient
         .from('sessions')
@@ -107,6 +74,9 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
       startTime: DateTime.parse(newSession['start_time']).toLocal(),
     );
   }
+
+
+
 
   @override
   Future<void> submitFragment({required String sessionId, required String content, required String? authorName}) async {
@@ -132,65 +102,21 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
 
   @override
   Future<Map<String, dynamic>> getQueueStatus({required String sessionId, required String queueId}) async {
-    // 1. Get Session Info (current turn)
-    final sessionData = await supabaseClient
-        .from('sessions')
-        .select('current_queue_id, turn_expires_at')
-        .eq('id', sessionId)
-        .single();
+    final response = await supabaseClient.rpc('get_queue_status', params: {
+      'p_session_id': int.parse(sessionId),
+      'p_queue_id': queueId,
+    });
     
-    final currentQueueId = sessionData['current_queue_id'] as String?;
-    final turnExpiresAt = sessionData['turn_expires_at'] != null 
-        ? DateTime.parse(sessionData['turn_expires_at'] as String) 
+    final data = response as Map<String, dynamic>;
+    
+    final turnExpiresAt = data['turnExpiresAt'] != null 
+        ? DateTime.parse(data['turnExpiresAt'] as String) 
         : null;
 
-    if (currentQueueId == queueId) {
-      return {
-        'status': 'active',
-        'position': 0,
-        'turnExpiresAt': turnExpiresAt,
-      };
-    }
-
-    // 2. Get My Queue Info
-    final myQueueData = await supabaseClient
-        .from('session_queue')
-        .select('created_at, status')
-        .eq('id', queueId)
-        .maybeSingle(); // Use maybeSingle to handle if deleted/completed
-
-    if (myQueueData == null) {
-       return {'status': 'none'};
-    }
-    
-    final myStatus = myQueueData['status'] as String;
-    if (myStatus == 'completed') return {'status': 'completed'};
-    if (myStatus == 'active') {
-       // Should have matched above, but maybe delay.
-       return {
-        'status': 'active',
-        'position': 0,
-        'turnExpiresAt': turnExpiresAt,
-      };
-    }
-    
-    // 3. Calculate Position (waiting ahead of me)
-    final myCreatedAt = DateTime.parse(myQueueData['created_at'] as String);
-    
-    final countResponse = await supabaseClient
-        .from('session_queue')
-        .select('id') // just count
-        .eq('session_id', sessionId)
-        .eq('status', 'waiting')
-        .lt('created_at', myCreatedAt.toIso8601String())
-        .count(CountOption.exact); // Request count
-
-    final position = countResponse.count + 1; // logical position 1st, 2nd...
-
     return {
-      'status': 'waiting',
-      'position': position,
-      'turnExpiresAt': turnExpiresAt, // Needed? Maybe to show "Current turn ends in..."
+      'status': data['status'],
+      'position': data['position'],
+      'turnExpiresAt': turnExpiresAt,
     };
   }
 
@@ -226,6 +152,25 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
   }
 
   @override
+  Stream<TbpSession> streamSession(String sessionId) {
+    return supabaseClient
+        .from('sessions')
+        .stream(primaryKey: ['id'])
+        .eq('id', sessionId)
+        .map((maps) {
+          if (maps.isEmpty) {
+             throw Exception('Session not found');
+          }
+          final map = maps.first;
+          return TbpSession(
+            id: map['id'].toString(),
+            startTime: DateTime.parse(map['start_time']).toLocal(),
+            imageUrl: map['image_url'], // Stream updates will bring this in
+          );
+        });
+  }
+
+  @override
   Future<void> fastForwardSession(String sessionId) async {
     // Set start time to (Now - 6m 50s) so only 10s remain
     final closeToExpiry = DateTime.now().toUtc().subtract(const Duration(minutes: 6, seconds: 50));
@@ -234,5 +179,46 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
         .from('sessions')
         .update({'start_time': closeToExpiry.toIso8601String()})
         .eq('id', sessionId);
+  }
+
+  @override
+  Future<String?> expireSession(String sessionId) async {
+     // 1. Fetch fragments to construct prompt
+     final fragmentsResponse = await supabaseClient
+         .from('fragments')
+         .select('content, created_at')
+         .eq('session_id', sessionId)
+         .order('created_at', ascending: true);
+         
+     final fragmentsList = (fragmentsResponse as List<dynamic>).map((e) => {
+       'content': e['content'],
+       'created_at': DateTime.parse(e['created_at'])
+     }).toList();
+     
+     // Force Sort Ascending
+     fragmentsList.sort((a, b) => (a['created_at'] as DateTime).compareTo(b['created_at'] as DateTime));
+     
+     final fullPrompt = fragmentsList.map((f) => f['content'] as String).join(' ');
+     
+     String? imageUrl;
+     if (fullPrompt.trim().isNotEmpty) {
+         try {
+            imageUrl = await generationDataSource.generateImage(fullPrompt);
+         } catch (e) {
+            // ignore: avoid_print
+            print('Error generating image: $e');
+         }
+     }
+
+     // 2. Update session
+     await supabaseClient
+        .from('sessions')
+        .update({
+          'status': 'finished',
+          'image_url': imageUrl,
+        })
+        .eq('id', sessionId);
+     
+     return imageUrl; // Return the URL
   }
 }

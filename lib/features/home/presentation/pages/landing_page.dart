@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'dart:convert';
 import '../../../../design_system/palette.dart';
 import '../../../collective_session/presentation/widgets/collective_stream_box.dart';
 import '../../../collective_session/presentation/widgets/contribution_form.dart';
@@ -7,6 +8,7 @@ import '../../../collective_session/presentation/widgets/session_timer.dart';
 import '../../../collective_session/presentation/widgets/instructions_section.dart';
 import '../../../collective_session/presentation/bloc/collective_session_bloc.dart';
 import '../../../../injected_container.dart' as di;
+import '../../../gallery/presentation/cubit/gallery_cubit.dart'; // Add
 // Removed invalid import
 
 class LandingPage extends StatelessWidget {
@@ -16,7 +18,107 @@ class LandingPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => di.sl<CollectiveSessionBloc>()..add(JoinSessionRequested('Anon')),
-      child: const LandingPageView(),
+      child: BlocListener<CollectiveSessionBloc, CollectiveSessionState>(
+        listener: (context, state) {
+            if (state is CollectiveSessionActive && state.session.imageUrl != null) {
+              
+              // New: Instant Gallery Update
+              // We construct the map as Supabase would return it
+              final newSessionMap = {
+                 'id': state.session.id,
+                 'start_time': state.session.startTime.toIso8601String(),
+                 'image_url': state.session.imageUrl,
+                 'status': 'finished'
+              };
+              context.read<GalleryCubit>().prependSession(newSessionMap);
+
+              // Trigger Reveal
+              showDialog(
+                context: context, 
+                barrierDismissible: false,
+                builder: (dialogContext) => _RevealDialog(
+                  imageUrl: state.session.imageUrl!,
+                  onClose: () {
+                    context.read<CollectiveSessionBloc>().add(JoinSessionRequested('Anon'));
+                  },
+                ),
+              );
+           }
+        },
+        child: const LandingPageView(),
+      ),
+    );
+  }
+}
+
+class _RevealDialog extends StatelessWidget {
+  final String imageUrl;
+  final VoidCallback? onClose; // Add Callback
+  
+  const _RevealDialog({
+    required this.imageUrl,
+    this.onClose,
+  });
+
+  Widget _buildImage() {
+    if (imageUrl.startsWith('data:image')) {
+      try {
+        final base64String = imageUrl.split(',').last;
+        return Image.memory(
+          const Base64Decoder().convert(base64String),
+          fit: BoxFit.contain,
+          errorBuilder: (c, o, s) => const Center(child: Icon(Icons.error, color: Colors.white, size: 50)),
+        );
+      } catch (e) {
+        return const Center(child: Icon(Icons.error, color: Colors.white, size: 50));
+      }
+    }
+    
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.contain,
+      errorBuilder: (c, o, s) => const Center(child: Icon(Icons.broken_image, color: Colors.white, size: 50)),
+      loadingBuilder: (c, child, p) {
+         if (p == null) return child;
+         return const Center(child: CircularProgressIndicator(color: TbpPalette.lilac));
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      backgroundColor: Colors.black,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+           // Image
+           _buildImage(),
+           
+           // Close / Gallery Button
+           Positioned(
+             bottom: 50,
+             left: 0,
+             right: 0,
+             child: Center(
+               child: ElevatedButton(
+                  onPressed: () {
+                    // Close dialog first
+                    Navigator.of(context).pop();
+                    // trigger callback
+                    onClose?.call();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: TbpPalette.lilac,
+                    foregroundColor: TbpPalette.darkViolet,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  ),
+                  child: const Text('CLOSE & CONTINUE'),
+               ),
+             ),
+           ),
+        ],
+      ),
     );
   }
 }

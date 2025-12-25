@@ -11,6 +11,8 @@ import '../../domain/usecases/debug_fast_forward.dart';
 import '../../domain/usecases/join_queue.dart';
 import '../../domain/usecases/submit_queue_fragment.dart';
 import '../../domain/usecases/get_queue_status.dart';
+import '../../domain/usecases/stream_session.dart';
+import '../../domain/usecases/expire_session.dart'; // Add this
 
 // Events
 abstract class CollectiveSessionEvent extends Equatable {
@@ -74,6 +76,17 @@ class SubmitQueueFragmentRequested extends CollectiveSessionEvent {
   List<Object> get props => [content];
 }
 
+class SessionUpdated extends CollectiveSessionEvent {
+  final TbpSession session;
+  SessionUpdated(this.session);
+  @override
+  List<Object> get props => [session];
+}
+
+class SessionExpired extends CollectiveSessionEvent {
+  // Triggered when timer ends
+}
+
 // States
 abstract class CollectiveSessionState extends Equatable {
   @override
@@ -110,7 +123,9 @@ class CollectiveSessionActive extends CollectiveSessionState {
   final int? queuePosition;
   final String? myDeviceId;
   final String? myQueueId;
-  final Duration turnRemainingTime; // 20s countdown
+  final String? myAuthorName;
+  final Duration turnRemainingTime;
+  final bool isGenerating;
 
   CollectiveSessionActive({
     required this.session,
@@ -120,7 +135,9 @@ class CollectiveSessionActive extends CollectiveSessionState {
     this.queuePosition,
     this.myDeviceId,
     this.myQueueId,
+    this.myAuthorName,
     this.turnRemainingTime = Duration.zero,
+    this.isGenerating = false,
   });
 
   CollectiveSessionActive copyWith({
@@ -131,7 +148,9 @@ class CollectiveSessionActive extends CollectiveSessionState {
     int? queuePosition,
     String? myDeviceId,
     String? myQueueId,
+    String? myAuthorName,
     Duration? turnRemainingTime,
+    bool? isGenerating,
   }) {
     return CollectiveSessionActive(
       session: session ?? this.session,
@@ -141,7 +160,9 @@ class CollectiveSessionActive extends CollectiveSessionState {
       queuePosition: queuePosition ?? this.queuePosition,
       myDeviceId: myDeviceId ?? this.myDeviceId,
       myQueueId: myQueueId ?? this.myQueueId,
+      myAuthorName: myAuthorName ?? this.myAuthorName,
       turnRemainingTime: turnRemainingTime ?? this.turnRemainingTime,
+      isGenerating: isGenerating ?? this.isGenerating,
     );
   }
 
@@ -154,7 +175,9 @@ class CollectiveSessionActive extends CollectiveSessionState {
         queuePosition ?? -1, 
         myDeviceId ?? '', 
         myQueueId ?? '',
-        turnRemainingTime
+        myAuthorName ?? '',
+        turnRemainingTime,
+        isGenerating,
       ];
 }
 
@@ -165,13 +188,18 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
   final DebugFastForward debugFastForward;
   final JoinQueue joinQueue;
   final SubmitQueueFragment submitQueueFragment;
-  final GetQueueStatus getQueueStatus;
+  final GetQueueStatus getQueueStatusUseCase; // Restored
+  final StreamSession streamSession; // Add this
+  final ExpireSession expireSession; // Add this
 
   StreamSubscription? _fragmentsSubscription;
+  StreamSubscription? _sessionSubscription; // Add this
   Timer? _timer;
   Timer? _queuePoller;
   String? _cachedDeviceId;
-
+  
+  // ... constructor ...
+  
   CollectiveSessionBloc({
     required this.joinSession,
     required this.submitFragment,
@@ -179,18 +207,51 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
     required this.debugFastForward,
     required this.joinQueue,
     required this.submitQueueFragment,
-    required this.getQueueStatus,
+    required this.getQueueStatusUseCase,
+    required this.streamSession, // Add this
+    required this.expireSession, // Add this
   }) : super(CollectiveSessionInitial()) {
-    on<JoinSessionRequested>(_onJoinSessionRequested);
-    on<FragmentSubmitted>(_onFragmentSubmitted); // Keeps legacy for now or remove?
-    on<FragmentsUpdated>(_onFragmentsUpdated);
-    on<TimerTicked>(_onTimerTicked);
-    on<DebugFastForwardRequested>(_onDebugFastForwardRequested);
-    
-    // Queue Events
-    on<JoinQueueRequested>(_onJoinQueueRequested);
-    on<QueueStatusUpdated>(_onQueueStatusUpdated);
-    on<SubmitQueueFragmentRequested>(_onSubmitQueueFragmentRequested);
+     // ... handlers ...
+
+     on<JoinSessionRequested>(_onJoinSessionRequested);
+     on<FragmentSubmitted>(_onFragmentSubmitted);
+     on<FragmentsUpdated>(_onFragmentsUpdated);
+     on<TimerTicked>(_onTimerTicked);
+     on<DebugFastForwardRequested>(_onDebugFastForwardRequested);
+     on<JoinQueueRequested>(_onJoinQueueRequested);
+     on<QueueStatusUpdated>(_onQueueStatusUpdated);
+     on<SubmitQueueFragmentRequested>(_onSubmitQueueFragmentRequested);
+     on<SessionUpdated>(_onSessionUpdated); // Handle session updates
+     on<SessionExpired>(_onSessionExpired); // Add this
+
+  }
+
+  Future<void> _onSessionExpired(SessionExpired event, Emitter<CollectiveSessionState> emit) async {
+     if (state is CollectiveSessionActive) {
+        final currentState = state as CollectiveSessionActive;
+        try {
+           // Notify UI that generation is starting
+           emit(currentState.copyWith(isGenerating: true));
+           
+           final imageUrl = await expireSession(currentState.session.id);
+           
+           if (imageUrl != null) {
+              // FORCE UPDATE STATE
+              final updatedSession = currentState.session.copyWith(imageUrl: imageUrl);
+              emit(currentState.copyWith(
+                session: updatedSession,
+                isGenerating: false, // Turn off flag
+              ));
+           } else {
+             // Failed or no image? Reset flag anyway
+             emit(currentState.copyWith(isGenerating: false));
+           }
+        } catch (e) {
+           // ignore: avoid_print
+           print('Error expiring session: $e');
+           emit(currentState.copyWith(isGenerating: false));
+        }
+     }
   }
 
   Future<void> _onJoinSessionRequested(JoinSessionRequested event, Emitter<CollectiveSessionState> emit) async {
@@ -202,19 +263,25 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
       _fragmentsSubscription?.cancel();
       _fragmentsSubscription = streamFragments(session.id).listen((fragments) {
         add(FragmentsUpdated(fragments));
-        // Also Trigger Queue Status Check when fragments update (as a proxy for session activity)?
-        // Or better, set up a separate Poller. 
-        _checkQueueStatus(session.id); 
+         _checkQueueStatus(session.id); 
+      });
+      
+      // Start listening to session updates (Reveal Logic)
+      _sessionSubscription?.cancel();
+      _sessionSubscription = streamSession(session.id).listen((updatedSession) {
+         add(SessionUpdated(updatedSession));
       });
 
       _startTimer(session.startTime);
-      _startQueuePoller(session.id); // Poll every 3s
+      _startQueuePoller(session.id);
 
       emit(CollectiveSessionActive(session: session));
     } catch (e) {
       emit(CollectiveSessionError(e.toString()));
     }
   }
+  
+
 
   void _startQueuePoller(String sessionId) {
     _queuePoller?.cancel();
@@ -231,7 +298,7 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
      if (myQueueId == null) return; // Not in queue yet
 
      try {
-       final result = await getQueueStatus(sessionId: sessionId, queueId: myQueueId);
+       final result = await getQueueStatusUseCase.call(sessionId: sessionId, queueId: myQueueId); // removed !
        final statusStr = result['status'];
        final position = result['position'] as int?;
        final turnExpiresAt = result['turnExpiresAt'] as DateTime?;
@@ -274,16 +341,17 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
            name: event.username, 
            deviceId: deviceId
          );
-         
-         emit(currentState.copyWith(
-           queueStatus: QueueStatus.waiting,
-           myQueueId: queueId,
-           queuePosition: 99, // Placeholder
-         ));
-         
-       } catch (e) {
-         // Revert or error
-       }
+                  emit(currentState.copyWith(
+            queueStatus: QueueStatus.waiting,
+            myQueueId: queueId,
+            myDeviceId: deviceId, // CRITICAL: Persist deviceId as currentState is stale
+            myAuthorName: event.username, // NEW: Persist the author name!
+            queuePosition: null, // Let poller fetch actual position
+          ));
+          
+        } catch (e) {
+          // Revert or error
+        }
      }
   }
   
@@ -291,15 +359,18 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
     if (state is CollectiveSessionActive) {
       final currentState = state as CollectiveSessionActive;
       try {
+        final author = currentState.myAuthorName ?? 'User';
+        
         await submitQueueFragment(
           sessionId: currentState.session.id,
           content: event.content,
-          authorName: 'User', // TODO: Store name
+          authorName: author, // Use stored name
           deviceId: currentState.myDeviceId!,
         );
         emit(currentState.copyWith(queueStatus: QueueStatus.completed));
       } catch (e) {
-        // Error
+        // ignore: avoid_print
+        print('Queue Submit Error: $e');
       }
     }
   }
@@ -312,21 +383,35 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick(startTime));
   }
 
+  void _onSessionUpdated(SessionUpdated event, Emitter<CollectiveSessionState> emit) {
+      if (state is CollectiveSessionActive) {
+         final currentState = state as CollectiveSessionActive;
+         // Check if image URL appeared
+         if (event.session.imageUrl != null && currentState.session.imageUrl == null) {
+             emit(currentState.copyWith(
+               session: event.session, // Update session with image
+             ));
+         } else {
+             emit(currentState.copyWith(session: event.session));
+         }
+      }
+  }
+
+  // ... (keep _startQueuePoller, _checkQueueStatus ...)
+
   void _tick(DateTime startTime) {
-    // ... existing logic ...
+    if (state is! CollectiveSessionActive) return;
+
     final now = DateTime.now();
     final endTime = startTime.add(const Duration(minutes: 7));
     final remaining = endTime.difference(now);
 
     if (remaining.isNegative) {
-      add(TimerTicked(Duration.zero));
-      _timer?.cancel();
-      // Auto-refresh logic (keep it)
-      Future.delayed(const Duration(seconds: 2), () {
-        if (!isClosed) {
-           add(JoinSessionRequested('Anon'));
-        }
-      });
+      if (_timer != null && _timer!.isActive) {
+         add(TimerTicked(Duration.zero));
+         _timer?.cancel();
+         add(SessionExpired()); // Dispatch event instead of direct call
+      }
     } else {
       add(TimerTicked(remaining));
     }

@@ -14,11 +14,7 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
-    const LandingPage(),
-    const AccountPage(),
-    const GalleryPage(),
-  ];
+
 
   void _onItemTapped(int index) {
     setState(() {
@@ -30,9 +26,22 @@ class _MainLayoutState extends State<MainLayout> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TbpPalette.lightBackground,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
+      body: Stack(
+        children: [
+          // 1. HOME (Persisted to keep Bloc/Timer alive)
+          Offstage(
+            offstage: _currentIndex != 0,
+            child: const LandingPage(),
+          ),
+          
+          // 2. ACCOUNT (Recreated on visit)
+          if (_currentIndex == 1) 
+            const AccountPage(),
+          
+          // 3. GALLERY (Recreated on visit -> Triggers Auto-Refresh)
+          if (_currentIndex == 2) 
+            const GalleryPage(),
+        ],
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.only(top: 10),

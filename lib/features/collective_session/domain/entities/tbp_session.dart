@@ -11,6 +11,18 @@ class TbpSession extends Equatable {
     this.imageUrl,
   });
 
+  TbpSession copyWith({
+    String? id,
+    DateTime? startTime,
+    String? imageUrl,
+  }) {
+    return TbpSession(
+      id: id ?? this.id,
+      startTime: startTime ?? this.startTime,
+      imageUrl: imageUrl ?? this.imageUrl,
+    );
+  }
+
   @override
   List<Object?> get props => [id, startTime, imageUrl];
 }

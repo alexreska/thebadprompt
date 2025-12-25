@@ -53,7 +53,7 @@ class _ContributionFormState extends State<ContributionForm> {
                ),
 
             if (queueStatus == QueueStatus.waiting)
-              _buildWaitingState(context, state.queuePosition ?? 99),
+              _buildWaitingState(context, state.queuePosition),
 
             if (queueStatus == QueueStatus.active)
               _buildActiveState(context, state.turnRemainingTime),
@@ -157,7 +157,7 @@ class _ContributionFormState extends State<ContributionForm> {
     );
   }
 
-  Widget _buildWaitingState(BuildContext context, int position) {
+  Widget _buildWaitingState(BuildContext context, int? position) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -175,7 +175,7 @@ class _ContributionFormState extends State<ContributionForm> {
           ),
           const SizedBox(height: 8),
           Text(
-            'You are #$position in line',
+            position != null ? 'You are #$position in line' : 'Hold tight...',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               color: TbpPalette.darkViolet,
               fontWeight: FontWeight.bold,
@@ -208,7 +208,9 @@ class _ContributionFormState extends State<ContributionForm> {
                const Icon(Icons.timer, color: TbpPalette.lilac),
                const SizedBox(width: 8),
                Text(
-                 'YOUR TURN! ${remaining.inSeconds}s left',
+                 remaining.isNegative 
+                    ? 'TURN OVER!' 
+                    : 'YOUR TURN! ${remaining.inSeconds}s left',
                  style: const TextStyle(
                    color: TbpPalette.lilac, 
                    fontWeight: FontWeight.bold,

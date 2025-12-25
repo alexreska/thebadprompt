@@ -12,7 +12,10 @@ import 'features/collective_session/domain/usecases/debug_fast_forward.dart';
 import 'features/collective_session/domain/usecases/join_queue.dart';
 import 'features/collective_session/domain/usecases/submit_queue_fragment.dart';
 import 'features/collective_session/domain/usecases/get_queue_status.dart';
+import 'features/collective_session/domain/usecases/stream_session.dart';
+import 'features/collective_session/domain/usecases/expire_session.dart'; // Add this
 import 'features/collective_session/presentation/bloc/collective_session_bloc.dart';
+import 'features/gallery/presentation/cubit/gallery_cubit.dart';
 
 final sl = GetIt.instance;
 
@@ -32,7 +35,9 @@ Future<void> init() async {
       debugFastForward: sl(),
       joinQueue: sl(),
       submitQueueFragment: sl(),
-      getQueueStatus: sl(),
+      getQueueStatusUseCase: sl(),
+      streamSession: sl(),
+      expireSession: sl(), // Add this
     ),
   );
 
@@ -45,6 +50,7 @@ Future<void> init() async {
   sl.registerLazySingleton(() => JoinQueue(sl()));
   sl.registerLazySingleton(() => SubmitQueueFragment(sl()));
   sl.registerLazySingleton(() => GetQueueStatus(sl()));
+  sl.registerLazySingleton(() => StreamSession(sl())); // Add this
 
   // Repository
   sl.registerLazySingleton<CollectiveRepository>(
@@ -64,4 +70,11 @@ Future<void> init() async {
   );
   
   sl.registerLazySingleton(() => http.Client());
+
+  // Use Case
+  // Use Case
+  sl.registerLazySingleton(() => ExpireSession(sl()));
+  
+  // Feature - Gallery
+  sl.registerFactory(() => GalleryCubit(supabaseClient: sl()));
 }
