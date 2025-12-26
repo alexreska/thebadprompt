@@ -36,8 +36,22 @@ class SessionTimer extends StatelessWidget {
 
           final minutes = state.remainingTime.inMinutes.remainder(60).toString().padLeft(2, '0');
           final seconds = state.remainingTime.inSeconds.remainder(60).toString().padLeft(2, '0');
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          final roomCode = state.session.roomCode ?? '----';
+
+          return Column(
+            children: [
+               Text(
+                 'ROOM: $roomCode',
+                 style: TextStyle(
+                   color: TbpPalette.darkViolet.withValues(alpha: 0.5),
+                   fontWeight: FontWeight.bold,
+                   fontSize: 16,
+                   letterSpacing: 2
+                 ),
+               ),
+               const SizedBox(height: 8),
+               Row(
+                mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
              children: [
                const Icon(Icons.timer_outlined, color: TbpPalette.darkViolet, size: 24),
@@ -53,7 +67,7 @@ class SessionTimer extends StatelessWidget {
                ),
                const SizedBox(width: 32),
                
-               // DEBUG: Fast Forward Button
+                // DEBUG: Fast Forward Button
                IconButton(
                  onPressed: () {
                     context.read<CollectiveSessionBloc>().add(DebugFastForwardRequested());
@@ -62,6 +76,8 @@ class SessionTimer extends StatelessWidget {
                  tooltip: 'Debug: Jump to 00:10',
                ),
             ],
+          ),
+          ],
           );
         }
         return const SizedBox(height: 24); 

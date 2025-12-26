@@ -2,25 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:convert';
 import '../../../../design_system/palette.dart';
+import '../../../collective_session/presentation/widgets/lobby_page.dart'; // Add import
 import '../../../collective_session/presentation/widgets/collective_stream_box.dart';
 import '../../../collective_session/presentation/widgets/contribution_form.dart';
 import '../../../collective_session/presentation/widgets/session_timer.dart';
 import '../../../collective_session/presentation/widgets/instructions_section.dart';
 import '../../../collective_session/presentation/bloc/collective_session_bloc.dart';
-import '../../../../injected_container.dart' as di;
-import '../../../gallery/presentation/cubit/gallery_cubit.dart'; // Add
-// Removed invalid import
+import '../../../gallery/presentation/cubit/gallery_cubit.dart'; 
 
 class LandingPage extends StatelessWidget {
   const LandingPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => di.sl<CollectiveSessionBloc>()..add(JoinSessionRequested('Anon')),
-      child: BlocListener<CollectiveSessionBloc, CollectiveSessionState>(
-        listener: (context, state) {
-            if (state is CollectiveSessionActive && state.session.imageUrl != null) {
+    return BlocListener<CollectiveSessionBloc, CollectiveSessionState>(
+      listener: (context, state) {
+          if (state is CollectiveSessionActive && state.session.imageUrl != null) {
               
               // New: Instant Gallery Update
               // We construct the map as Supabase would return it
@@ -39,14 +36,38 @@ class LandingPage extends StatelessWidget {
                 builder: (dialogContext) => _RevealDialog(
                   imageUrl: state.session.imageUrl!,
                   onClose: () {
-                    context.read<CollectiveSessionBloc>().add(JoinSessionRequested('Anon'));
+                    context.read<CollectiveSessionBloc>().add(LeaveSession());
                   },
                 ),
               );
            }
         },
-        child: const LandingPageView(),
-      ),
+        child: BlocBuilder<CollectiveSessionBloc, CollectiveSessionState>(
+          builder: (context, state) {
+            if (state is CollectiveSessionActive) {
+               return const LandingPageView();
+            }
+            if (state is CollectiveSessionLoading) {
+               return const Scaffold(
+                 body: Center(child: CircularProgressIndicator(color: TbpPalette.darkViolet)),
+               );
+            }
+            if (state is CollectiveSessionError) {
+               return Scaffold(
+                 body: Center(child: Text('Error: ${state.message}')),
+               );
+            }
+            if (state is CollectiveSessionLobby) {
+              return const Scaffold(
+                body: LobbyPage(),
+              );
+            }
+            // Initial/Fallback
+            return const Scaffold(
+              body: LobbyPage(), 
+            );
+          },
+        ),
     );
   }
 }

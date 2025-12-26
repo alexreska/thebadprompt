@@ -2,6 +2,9 @@ import '../entities/tbp_session.dart';
 import '../entities/fragment.dart';
 
 abstract class CollectiveRepository {
+  Future<TbpSession> createRoom(String roomName);
+  Future<List<TbpSession>> listRooms();
+  Future<TbpSession> joinRoom(String roomCode);
   Future<TbpSession> joinSession(String username);
   Future<void> submitFragment(String sessionId, String fragment, String authorName);
   Future<String> joinQueue({required String sessionId, required String name, required String deviceId});

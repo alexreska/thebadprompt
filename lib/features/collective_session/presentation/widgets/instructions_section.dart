@@ -39,7 +39,7 @@ class InstructionsSection extends StatelessWidget {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: steps.map((s) => Padding(padding: const EdgeInsets.only(right: 16), child: s)).toList(),
+                    children: steps.map((s) => Padding(padding: const EdgeInsetsDirectional.only(end: 16), child: s)).toList(),
                   ),
                 );
               } else {

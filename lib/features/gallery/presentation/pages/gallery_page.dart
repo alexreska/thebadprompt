@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart'; // Add
 import '../cubit/gallery_cubit.dart'; // Add
+import 'package:tbp_v2/l10n/app_localizations.dart'; // Add
 
 import '../../../../design_system/palette.dart';
 import '../widgets/gallery_card.dart';
@@ -9,12 +10,18 @@ class GalleryPage extends StatelessWidget {
   const GalleryPage({super.key});
 
   @override
+
+
+//...
+
+  @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: TbpPalette.lightBackground, // Light Violet
       appBar: AppBar(
         title: Text(
-          'ARCHIVE',
+          l10n.archiveTitle,
           style: Theme.of(context).textTheme.displayMedium?.copyWith(
             color: TbpPalette.darkViolet,
             fontWeight: FontWeight.bold,
@@ -40,7 +47,7 @@ class GalleryPage extends StatelessWidget {
                  return Stack(
                    children: [
                      ListView(), // Ensure scroll for RefreshIndicator
-                     Center(child: Text('Error: ${state.message}', style: const TextStyle(color: TbpPalette.error))),
+                     Center(child: Text(l10n.error(state.message), style: const TextStyle(color: TbpPalette.error))),
                    ],
                  );
               }
@@ -51,7 +58,7 @@ class GalleryPage extends StatelessWidget {
                     return Stack(
                       children: [
                         ListView(), 
-                        const Center(child: Text('No archives yet.', style: TextStyle(color: TbpPalette.darkViolet))),
+                        Center(child: Text(l10n.noArchivesYet, style: const TextStyle(color: TbpPalette.darkViolet))),
                       ],
                     );
                  }

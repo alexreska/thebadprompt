@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../design_system/palette.dart';
 import '../pages/gallery_detail_page.dart';
 
@@ -84,10 +85,12 @@ class GalleryCard extends StatelessWidget {
       }
     }
 
-    return Image.network(
-      imageUrl!,
+    return CachedNetworkImage(
+      imageUrl: imageUrl!,
       fit: BoxFit.cover,
-      errorBuilder: (c, o, s) => const Center(child: Icon(Icons.broken_image)),
+      placeholder: (context, url) => const Center(child: CircularProgressIndicator(color: TbpPalette.lilac)),
+      errorWidget: (context, url, error) => const Center(child: Icon(Icons.broken_image)),
+      memCacheWidth: 600, // Optimize memory usage (don't load full res)
     );
   }
 }

@@ -1,9 +1,15 @@
+import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/entities/fragment.dart';
 import '../../domain/entities/tbp_session.dart';
 import 'generation_remote_data_source.dart';
 
+import 'package:logger/logger.dart'; // Added
+
 abstract class CollectiveRemoteDataSource {
+  Future<TbpSession> createRoom(String roomName);
+  Future<List<TbpSession>> listRooms();
+  Future<TbpSession> joinRoom(String roomCode);
   Future<TbpSession> joinSession(String username);
   Future<void> submitFragment({required String sessionId, required String content, required String? authorName});
   Future<String> joinQueue({required String sessionId, required String name, required String deviceId});
@@ -17,14 +23,69 @@ abstract class CollectiveRemoteDataSource {
 
 
 
+
+
 class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
   final SupabaseClient supabaseClient;
   final GenerationRemoteDataSource generationDataSource;
+  final logger = Logger(); // Added
 
   CollectiveRemoteDataSourceImpl({
     required this.supabaseClient,
     required this.generationDataSource,
   });
+
+  @override
+  Future<TbpSession> createRoom(String roomName) async {
+    // 1. Anon Auth
+    await supabaseClient.auth.signInAnonymously();
+
+    // 2. Call RPC
+    final response = await supabaseClient.rpc('create_tbp_room', params: {'p_room_name': roomName});
+    final data = response as Map<String, dynamic>;
+
+    return TbpSession(
+      id: data['id'].toString(),
+      startTime: DateTime.parse(data['start_time']).toLocal(),
+      roomCode: data['room_code'],
+      roomName: data['room_name'],
+    );
+  }
+
+  @override
+  Future<List<TbpSession>> listRooms() async {
+     await supabaseClient.auth.signInAnonymously();
+     
+     final response = await supabaseClient.rpc('list_active_rooms');
+     final list = response as List<dynamic>;
+
+     return list.map((data) => TbpSession(
+       id: data['id'].toString(),
+       startTime: DateTime.parse(data['start_time']).toLocal(),
+       roomCode: data['room_code'],
+       roomName: data['room_name'],
+     )).toList();
+  }
+
+  @override
+  Future<TbpSession> joinRoom(String roomCode) async {
+     // 1. Anon Auth
+    await supabaseClient.auth.signInAnonymously();
+
+    // 2. Call RPC
+    final response = await supabaseClient.rpc('join_tbp_room', params: {'p_room_code': roomCode});
+    final data = response as Map<String, dynamic>;
+
+    if (data.containsKey('error')) {
+      throw Exception(data['error']);
+    }
+
+    return TbpSession(
+      id: data['id'].toString(),
+      startTime: DateTime.parse(data['start_time']).toLocal(),
+      roomCode: data['room_code'],
+    );
+  }
 
   @override
   Future<TbpSession> joinSession(String username) async {
@@ -165,7 +226,9 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
           return TbpSession(
             id: map['id'].toString(),
             startTime: DateTime.parse(map['start_time']).toLocal(),
-            imageUrl: map['image_url'], // Stream updates will bring this in
+            imageUrl: map['image_url'],
+            roomCode: map['room_code'],
+            roomName: map['room_name'],
           );
         });
   }
@@ -182,7 +245,7 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
   }
 
   @override
-  Future<String?> expireSession(String sessionId) async {
+   Future<String?> expireSession(String sessionId) async {
      // 1. Fetch fragments to construct prompt
      final fragmentsResponse = await supabaseClient
          .from('fragments')
@@ -203,10 +266,38 @@ class CollectiveRemoteDataSourceImpl implements CollectiveRemoteDataSource {
      String? imageUrl;
      if (fullPrompt.trim().isNotEmpty) {
          try {
-            imageUrl = await generationDataSource.generateImage(fullPrompt);
+            final generatedImage = await generationDataSource.generateImage(fullPrompt);
+            
+            // 2b. Check if Base64 (starts with data:image)
+            if (generatedImage.startsWith('data:image')) {
+                try {
+                  final base64String = generatedImage.split(',').last;
+                  final imageBytes = base64Decode(base64String);
+                  final fileName = 'session_$sessionId.png';
+                  
+                  // Upload to 'session_images' bucket
+                  await supabaseClient.storage
+                      .from('session_images')
+                      .uploadBinary(fileName, imageBytes, fileOptions: const FileOptions(upsert: true));
+                  
+                  // Get Public URL
+                  imageUrl = supabaseClient.storage
+                      .from('session_images')
+                      .getPublicUrl(fileName);
+                      
+                } catch (e) {
+                  // ignore: avoid_print
+                  logger.e('MRO: Failed to upload to storage: $e');
+                  // Fallback to storing Base64 directly if upload fails (e.g. bucket missing)
+                  imageUrl = generatedImage;
+                }
+            } else {
+               // Already a URL (e.g. from fallback or other provider)
+               imageUrl = generatedImage;
+            }
          } catch (e) {
             // ignore: avoid_print
-            print('Error generating image: $e');
+            logger.e('Error generating image: $e');
          }
      }
 

@@ -1,0 +1,77 @@
+{
+  "appTitle": "The Bad Prompt",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+  "joinTheCollective": "Join the Collective",
+  "yourName": "Your Name",
+  "enterYourAlias": "Enter your alias...",
+  "joinQueue": "JOIN QUEUE",
+  "viewArchive": "VIEW ARCHIVE",
+  "greatContribution": "Great Contribution! Go again?",
+  "turnExpired": "Turn Expired. Try again?",
+  "limitReached": "Limit reached or Line full?",
+  "youArePosition": "You are #{position} in line",
+  "@youArePosition": {
+    "placeholders": {
+      "position": {
+        "type": "int"
+      }
+    }
+  },
+  "holdTight": "Hold tight...",
+  "prepareYourWord": "Prepare your word...",
+  "turnOver": "TURN OVER!",
+  "yourTurn": "YOUR TURN! {seconds}s left",
+  "@yourTurn": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "oneWordOnly": "One Word Only",
+  "submit": "SUBMIT",
+  "generatingArt": "Generating Art...",
+  "errorGenerating": "Error Generating Image",
+  "archiveTitle": "ARCHIVE",
+  "error": "Error: {message}",
+  "@error": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "noArchivesYet": "No archives yet.",
+  "createNewRoom": "Create New Room",
+  "roomName": "Room Name",
+  "roomNameHint": "e.g. The Chill Zone",
+  "cancel": "CANCEL",
+  "create": "CREATE",
+  "createRoom": "CREATE ROOM",
+  "chooseRoomToJoin": "Choose a room to join",
+  "enterCodeHint": "Enter 4-letter Code",
+  "noActiveRooms": "No active rooms.\nCreate one!",
+  "unnamedRoom": "Unnamed Room",
+  "roomCodePrefix": "Code: {code}",
+  "@roomCodePrefix": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "startedPrefix": "Started: {time}",
+  "@startedPrefix": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "join": "JOIN",
+  "navHome": "HOME",
+  "navAccount": "ACCOUNT",
+  "navGallery": "GALLERY"
+}

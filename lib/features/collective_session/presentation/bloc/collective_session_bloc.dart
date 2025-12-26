@@ -12,7 +12,8 @@ import '../../domain/usecases/join_queue.dart';
 import '../../domain/usecases/submit_queue_fragment.dart';
 import '../../domain/usecases/get_queue_status.dart';
 import '../../domain/usecases/stream_session.dart';
-import '../../domain/usecases/expire_session.dart'; // Add this
+import '../../domain/usecases/expire_session.dart'; // Restored
+import 'package:logger/logger.dart';
 
 // Events
 abstract class CollectiveSessionEvent extends Equatable {
@@ -26,6 +27,22 @@ class JoinSessionRequested extends CollectiveSessionEvent {
   @override
   List<Object> get props => [username];
 }
+
+class CreateRoomRequested extends CollectiveSessionEvent {
+  final String name;
+  CreateRoomRequested(this.name);
+  @override
+  List<Object> get props => [name];
+}
+
+class JoinRoomRequested extends CollectiveSessionEvent {
+  final String roomCode;
+  JoinRoomRequested(this.roomCode);
+  @override
+  List<Object> get props => [roomCode];
+}
+
+class LeaveSession extends CollectiveSessionEvent {}
 
 class FragmentSubmitted extends CollectiveSessionEvent {
   final String content;
@@ -87,10 +104,15 @@ class SessionExpired extends CollectiveSessionEvent {
   // Triggered when timer ends
 }
 
+// Events
+class LoadRoomsRequested extends CollectiveSessionEvent {}
+
 // States
 abstract class CollectiveSessionState extends Equatable {
+  const CollectiveSessionState();
+  
   @override
-  List<Object> get props => [];
+  List<Object?> get props => [];
 }
 
 class CollectiveSessionInitial extends CollectiveSessionState {}
@@ -99,9 +121,24 @@ class CollectiveSessionLoading extends CollectiveSessionState {}
 
 class CollectiveSessionError extends CollectiveSessionState {
   final String message;
-  CollectiveSessionError(this.message);
+  const CollectiveSessionError(this.message);
   @override
-  List<Object> get props => [message];
+  List<Object?> get props => [message];
+}
+
+class CollectiveSessionLobby extends CollectiveSessionState {
+  final List<TbpSession> rooms;
+  final bool isLoading;
+  final String? error;
+
+  const CollectiveSessionLobby({
+    this.rooms = const [],
+    this.isLoading = false,
+    this.error,
+  });
+
+  @override
+  List<Object?> get props => [rooms, isLoading, error];
 }
 
 enum QueueStatus {
@@ -127,7 +164,7 @@ class CollectiveSessionActive extends CollectiveSessionState {
   final Duration turnRemainingTime;
   final bool isGenerating;
 
-  CollectiveSessionActive({
+  const CollectiveSessionActive({
     required this.session,
     this.fragments = const [],
     this.remainingTime = const Duration(minutes: 7),
@@ -191,6 +228,7 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
   final GetQueueStatus getQueueStatusUseCase; // Restored
   final StreamSession streamSession; // Add this
   final ExpireSession expireSession; // Add this
+  final logger = Logger(); // Added
 
   StreamSubscription? _fragmentsSubscription;
   StreamSubscription? _sessionSubscription; // Add this
@@ -214,6 +252,10 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
      // ... handlers ...
 
      on<JoinSessionRequested>(_onJoinSessionRequested);
+     on<LoadRoomsRequested>(_onLoadRoomsRequested);
+     on<CreateRoomRequested>(_onCreateRoomRequested);
+     on<JoinRoomRequested>(_onJoinRoomRequested);
+     on<LeaveSession>(_onLeaveSession);
      on<FragmentSubmitted>(_onFragmentSubmitted);
      on<FragmentsUpdated>(_onFragmentsUpdated);
      on<TimerTicked>(_onTimerTicked);
@@ -279,6 +321,56 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
     } catch (e) {
       emit(CollectiveSessionError(e.toString()));
     }
+  }
+
+  Future<void> _onLoadRoomsRequested(LoadRoomsRequested event, Emitter<CollectiveSessionState> emit) async {
+    emit(const CollectiveSessionLobby(isLoading: true)); // Or copyWith if state was already Lobby
+    try {
+      final rooms = await joinSession.listRooms();
+      emit(CollectiveSessionLobby(rooms: rooms, isLoading: false));
+    } catch (e) {
+      emit(CollectiveSessionLobby(isLoading: false, error: e.toString()));
+    }
+  }
+
+  Future<void> _onCreateRoomRequested(CreateRoomRequested event, Emitter<CollectiveSessionState> emit) async {
+    emit(CollectiveSessionLoading());
+    try {
+      final session = await joinSession.createRoom(event.name);
+      _initializeSession(session, emit);
+    } catch (e) {
+      emit(CollectiveSessionError(e.toString()));
+    }
+  }
+
+  Future<void> _onJoinRoomRequested(JoinRoomRequested event, Emitter<CollectiveSessionState> emit) async {
+    emit(CollectiveSessionLoading());
+    try {
+      final session = await joinSession.joinRoom(event.roomCode);
+      _initializeSession(session, emit);
+    } catch (e) {
+      emit(CollectiveSessionError(e.toString()));
+    }
+  }
+
+  void _initializeSession(TbpSession session, Emitter<CollectiveSessionState> emit) {
+     // Start fetching fragments
+      _fragmentsSubscription?.cancel();
+      _fragmentsSubscription = streamFragments(session.id).listen((fragments) {
+        add(FragmentsUpdated(fragments));
+         _checkQueueStatus(session.id); 
+      });
+      
+      // Start listening to session updates (Reveal Logic)
+      _sessionSubscription?.cancel();
+      _sessionSubscription = streamSession(session.id).listen((updatedSession) {
+         add(SessionUpdated(updatedSession));
+      });
+
+      _startTimer(session.startTime);
+      _startQueuePoller(session.id);
+
+      emit(CollectiveSessionActive(session: session));
   }
   
 
@@ -417,6 +509,16 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
     }
   }
   
+  Future<void> _onLeaveSession(LeaveSession event, Emitter<CollectiveSessionState> emit) async {
+    _fragmentsSubscription?.cancel();
+    _sessionSubscription?.cancel();
+    _timer?.cancel();
+    _queuePoller?.cancel();
+    emit(CollectiveSessionInitial());
+    // Immediately trigger load rooms for the lobby
+    add(LoadRoomsRequested());
+  }
+
   // Handlers for existing events to maintain compatibility
   Future<void> _onFragmentSubmitted(FragmentSubmitted event, Emitter<CollectiveSessionState> emit) async {
       // Legacy or admin bypass
@@ -459,6 +561,7 @@ class CollectiveSessionBloc extends Bloc<CollectiveSessionEvent, CollectiveSessi
   @override
   Future<void> close() {
     _fragmentsSubscription?.cancel();
+    _sessionSubscription?.cancel(); // Fixes Memory Leak
     _timer?.cancel();
     _queuePoller?.cancel(); // Cancel polling
     return super.close();

@@ -4,6 +4,7 @@ import '../../../gallery/presentation/pages/gallery_page.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../presentation/bloc/collective_session_bloc.dart';
+import 'package:tbp_v2/l10n/app_localizations.dart'; // Added import
 
 class ContributionForm extends StatefulWidget {
   const ContributionForm({super.key});
@@ -78,7 +79,7 @@ class _ContributionFormState extends State<ContributionForm> {
                 shadowColor: TbpPalette.lilac.withValues(alpha: 0.4),
                 textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              child: const Text('VIEW ARCHIVE'),
+              child: Text(AppLocalizations.of(context)!.viewArchive),
             ),
           ],
         );
@@ -86,10 +87,15 @@ class _ContributionFormState extends State<ContributionForm> {
     );
   }
 
+
+
+// ...
+
   Widget _buildJoinState(BuildContext context, QueueStatus status) {
-    String title = 'Join the Collective';
-    if (status == QueueStatus.completed) title = 'Great Contribution! Go again?';
-    if (status == QueueStatus.skipped) title = 'Turn Expired. Try again?';
+    final l10n = AppLocalizations.of(context)!;
+    String title = l10n.joinTheCollective;
+    if (status == QueueStatus.completed) title = l10n.greatContribution;
+    if (status == QueueStatus.skipped) title = l10n.turnExpired;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -104,7 +110,7 @@ class _ContributionFormState extends State<ContributionForm> {
         ),
         const SizedBox(height: 16),
         Text(
-          'Your Name', 
+          l10n.yourName, 
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
             color: TbpPalette.darkViolet,
             fontWeight: FontWeight.bold,
@@ -115,6 +121,7 @@ class _ContributionFormState extends State<ContributionForm> {
           controller: _nameController,
           autocorrect: false,
           enableSuggestions: false,
+          maxLength: 15, // Added Sanitization
           decoration: InputDecoration(
             filled: true,
             fillColor: TbpPalette.darkViolet.withValues(alpha: 0.05),
@@ -127,8 +134,9 @@ class _ContributionFormState extends State<ContributionForm> {
                borderSide: const BorderSide(color: TbpPalette.darkViolet, width: 2),
             ),
             contentPadding: const EdgeInsets.all(16),
-            hintText: 'Enter your alias...',
+            hintText: l10n.enterYourAlias,
             hintStyle: TextStyle(color: TbpPalette.darkViolet.withValues(alpha: 0.5)),
+            counterText: '', // Hide counter
           ),
           style: const TextStyle(color: TbpPalette.darkViolet),
         ),
@@ -151,13 +159,14 @@ class _ContributionFormState extends State<ContributionForm> {
             shadowColor: TbpPalette.lilac.withValues(alpha: 0.4),
             textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
-          child: const Text('JOIN QUEUE'),
+          child: Text(l10n.joinQueue),
         ),
       ],
     );
   }
 
   Widget _buildWaitingState(BuildContext context, int? position) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -170,12 +179,12 @@ class _ContributionFormState extends State<ContributionForm> {
           const CircularProgressIndicator(color: TbpPalette.darkViolet),
           const SizedBox(height: 16),
           Text(
-            'Limit reached or Line full?',
+            l10n.limitReached,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: TbpPalette.darkViolet),
           ),
           const SizedBox(height: 8),
           Text(
-            position != null ? 'You are #$position in line' : 'Hold tight...',
+            position != null ? l10n.youArePosition(position) : l10n.holdTight,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               color: TbpPalette.darkViolet,
               fontWeight: FontWeight.bold,
@@ -183,7 +192,7 @@ class _ContributionFormState extends State<ContributionForm> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Prepare your word...',
+            l10n.prepareYourWord,
              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: TbpPalette.darkViolet.withValues(alpha: 0.7)),
           ),
         ],
@@ -192,6 +201,7 @@ class _ContributionFormState extends State<ContributionForm> {
   }
 
   Widget _buildActiveState(BuildContext context, Duration remaining) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -209,8 +219,8 @@ class _ContributionFormState extends State<ContributionForm> {
                const SizedBox(width: 8),
                Text(
                  remaining.isNegative 
-                    ? 'TURN OVER!' 
-                    : 'YOUR TURN! ${remaining.inSeconds}s left',
+                    ? l10n.turnOver 
+                    : l10n.yourTurn(remaining.inSeconds),
                  style: const TextStyle(
                    color: TbpPalette.lilac, 
                    fontWeight: FontWeight.bold,
@@ -222,7 +232,7 @@ class _ContributionFormState extends State<ContributionForm> {
         ),
         const SizedBox(height: 16),
         Text(
-          'One Word Only', 
+          l10n.oneWordOnly, 
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
             color: TbpPalette.darkViolet,
             fontWeight: FontWeight.bold,
@@ -234,6 +244,7 @@ class _ContributionFormState extends State<ContributionForm> {
           autocorrect: false,
           enableSuggestions: false,
           autofocus: true, // Focus immediately!
+          maxLength: 20, // Added Sanitization (One word usually)
           decoration: InputDecoration(
             filled: true,
             fillColor: TbpPalette.white,
@@ -246,6 +257,7 @@ class _ContributionFormState extends State<ContributionForm> {
                borderSide: const BorderSide(color: TbpPalette.darkViolet, width: 3),
             ),
             contentPadding: const EdgeInsets.all(16),
+             counterText: '', // Hide counter
           ),
           style: const TextStyle(color: TbpPalette.darkViolet, fontSize: 18, fontWeight: FontWeight.bold),
         ),
@@ -269,7 +281,7 @@ class _ContributionFormState extends State<ContributionForm> {
             shadowColor: TbpPalette.lilac.withValues(alpha: 0.4),
             textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
-          child: const Text('SUBMIT'),
+          child: Text(l10n.submit),
         ),
       ],
     );

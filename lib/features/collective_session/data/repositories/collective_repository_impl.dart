@@ -9,6 +9,21 @@ class CollectiveRepositoryImpl implements CollectiveRepository {
   CollectiveRepositoryImpl({required this.remoteDataSource});
 
   @override
+  Future<TbpSession> createRoom(String roomName) {
+    return remoteDataSource.createRoom(roomName);
+  }
+
+  @override
+  Future<List<TbpSession>> listRooms() {
+    return remoteDataSource.listRooms();
+  }
+
+  @override
+  Future<TbpSession> joinRoom(String roomCode) {
+    return remoteDataSource.joinRoom(roomCode);
+  }
+
+  @override
   Future<TbpSession> joinSession(String username) {
     return remoteDataSource.joinSession(username);
   }

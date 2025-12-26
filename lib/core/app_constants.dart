@@ -1,13 +1,13 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConstants {
   static const String supabaseUrl = 'https://zjuwoxgoliunfsryjqfh.supabase.co';
   static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqdXdveGdvbGl1bmZzcnlqcWZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0MzYwODgsImV4cCI6MjA4MjAxMjA4OH0.clngZ_ws848VgaUx2jWuRPc7BYK5qfcVBmX3J5pqyQI';
   // AI Generation configuration
   // Supports: OpenAI (DALL-E), Stability AI, or generic Endpoint
   // Google AI Generation (Gemini)
-  // Google AI Generation (Gemini)
-  // Usage: flutter run --dart-define=AI_API_KEY=your_key_here
-  // Usage: flutter run --dart-define=AI_API_KEY=your_key_here
-  static const String aiApiKey = String.fromEnvironment('AI_API_KEY', defaultValue: 'AIzaSyD37dmJLUCmu2AJ4MRzfa1qYXzqHNsyWUU');
+  // Usage: Create .env file with AI_API_KEY=your_key_here
+  static String get aiApiKey => dotenv.env['AI_API_KEY'] ?? '';
   
   // Note: 'gemini-3-pro-image-preview' isn't a standard public endpoint yet in public docs, 
   // but we will try the standard v1beta/models/PATTERN:predict or similar. 
